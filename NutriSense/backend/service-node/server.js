@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./src/routes/authRoutes');
+const diaryRoutes = require('./src/routes/diaryRoutes'); // ← NUEVA LÍNEA
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -22,6 +23,7 @@ app.get('/health', (req, res) => {
 
 // Rutas
 app.use('/api/auth', authRoutes);
+app.use('/api/diaries', diaryRoutes); 
 
 // Ruta 404
 app.use((req, res) => {

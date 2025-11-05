@@ -1,246 +1,353 @@
 import { useState, useEffect } from 'react';
-import { authService, diaryService } from '../services/api';
 import AddFoodModal from './AddFoodModal';
 
-function Dashboard({ user, onLogout }) {
-  const [diary, setDiary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
+function Dashboard({ onLogout }) {
+  const [calorieLimit, setCalorieLimit] = useState(2000); // Límite de calorías diario
+  const [editingLimit, setEditingLimit] = useState(false);
+  const [meals, setMeals] = useState({
+    desayuno: [],
+    almuerzo: [],
+    comida: [],
+    merienda: [],
+    cena: []
+  });
+  const [expandedMeals, setExpandedMeals] = useState({
+    desayuno: false,
+    almuerzo: false,
+    comida: false,
+    merienda: false,
+    cena: false
+  });
+  const [showModal, setShowModal] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState('');
-  
-  // Obtener fecha de hoy en formato YYYY-MM-DD
-  const today = new Date().toISOString().split('T')[0];
+  const [stats, setStats] = useState({
+    totalCalories: 0,
+    totalProtein: 0,
+    totalCarbs: 0,
+    totalFat: 0
+  });
 
-  // Cargar diario al montar el componente
+  const mealInfo = {
+    desayuno: { icon: '🌅', name: 'Desayuno', time: '07:00 - 10:00' },
+    almuerzo: { icon: '🥪', name: 'Almuerzo', time: '10:00 - 12:00' },
+    comida: { icon: '🍽️', name: 'Comida', time: '13:00 - 16:00' },
+    merienda: { icon: '🍎', name: 'Merienda', time: '17:00 - 19:00' },
+    cena: { icon: '🌙', name: 'Cena', time: '20:00 - 23:00' }
+  };
+
   useEffect(() => {
-    loadDiary();
-  }, []);
+    calculateStats();
+  }, [meals]);
 
-  const loadDiary = async () => {
-    try {
-      setLoading(true);
-      const data = await diaryService.getDiary(today);
-      setDiary(data);
-    } catch (error) {
-      console.error('Error cargando diario:', error);
-    } finally {
-      setLoading(false);
+  const calculateStats = () => {
+    let totalCalories = 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+
+    Object.values(meals).forEach(mealFoods => {
+      mealFoods.forEach(food => {
+        totalCalories += food.calories || 0;
+        totalProtein += food.protein || 0;
+        totalCarbs += food.carbohydrates || 0;
+        totalFat += food.fat || 0;
+      });
+    });
+
+    setStats({
+      totalCalories: totalCalories.toFixed(0),
+      totalProtein: totalProtein.toFixed(1),
+      totalCarbs: totalCarbs.toFixed(1),
+      totalFat: totalFat.toFixed(1)
+    });
+  };
+
+  const calculateMealTotals = (mealType) => {
+    const mealFoods = meals[mealType];
+    return mealFoods.reduce((acc, food) => ({
+      calories: acc.calories + (food.calories || 0),
+      protein: acc.protein + (food.protein || 0),
+      carbs: acc.carbs + (food.carbohydrates || 0),
+      fat: acc.fat + (food.fat || 0)
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  };
+
+  const handleAddFood = (newFood) => {
+    if (!selectedMealType) return;
+
+    const foodWithId = {
+      ...newFood,
+      id: Date.now()
+    };
+
+    setMeals(prev => ({
+      ...prev,
+      [selectedMealType]: [...prev[selectedMealType], foodWithId]
+    }));
+
+    setShowModal(false);
+    setSelectedMealType('');
+  };
+
+  const handleDeleteFood = (mealType, foodId) => {
+    if (window.confirm('¿Estás seguro de eliminar esta comida?')) {
+      setMeals(prev => ({
+        ...prev,
+        [mealType]: prev[mealType].filter(food => food.id !== foodId)
+      }));
     }
   };
 
-  const handleAddFood = async (foodData) => {
-    try {
-      await diaryService.addEntry(today, foodData);
-      await loadDiary(); // Recargar diario
-    } catch (error) {
-      console.error('Error añadiendo comida:', error);
-      throw error;
-    }
+  const toggleMeal = (mealType) => {
+    setExpandedMeals(prev => ({
+      ...prev,
+      [mealType]: !prev[mealType]
+    }));
   };
 
-  const handleDeleteEntry = async (entryId) => {
-    if (!confirm('¿Eliminar esta comida?')) return;
-
-    try {
-      await diaryService.deleteEntry(entryId);
-      await loadDiary(); // Recargar diario
-    } catch (error) {
-      console.error('Error eliminando entrada:', error);
-      alert('Error al eliminar');
-    }
-  };
-
-  const openModal = (mealType) => {
+  const openAddFoodModal = (mealType) => {
     setSelectedMealType(mealType);
-    setModalOpen(true);
+    setShowModal(true);
   };
 
-  // Agrupar entradas por tipo de comida
-  const groupedEntries = {
-    desayuno: diary?.entries?.filter(e => e.meal_type === 'desayuno') || [],
-    almuerzo: diary?.entries?.filter(e => e.meal_type === 'almuerzo') || [],
-    cena: diary?.entries?.filter(e => e.meal_type === 'cena') || [],
-    snack: diary?.entries?.filter(e => e.meal_type === 'snack') || [],
+  const handleUpdateLimit = () => {
+    const newLimit = prompt('Ingresa tu límite diario de calorías:', calorieLimit);
+    if (newLimit && !isNaN(newLimit)) {
+      setCalorieLimit(parseInt(newLimit));
+    }
   };
 
-  const totals = diary?.totals || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  const getProgressBarClass = () => {
+    const percentage = (stats.totalCalories / calorieLimit) * 100;
+    if (percentage >= 100) return 'danger';  // Rojo si te pasas
+    if (percentage >= 80) return 'success';  // Verde cuando te acercas al objetivo
+    return '';  // Naranja por defecto (0-80%)
+  };
+
+  const progressPercentage = Math.min((stats.totalCalories / calorieLimit) * 100, 100);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-blue-600">NutriSense</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Hola, {user?.name || user?.email}</span>
-              <button
-                onClick={onLogout}
-                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
+    <div className="dashboard-container">
+      <div className="dashboard-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 className="welcome-text">
+              🍎 Tu Panel Nutricional
+            </h1>
+            <p style={{ color: '#6b7280', marginTop: '0.5rem', fontSize: '1rem' }}>
+              Gestiona tus comidas y controla tu nutrición diaria
+            </p>
           </div>
+          <button
+            onClick={onLogout}
+            className="btn-delete"
+            style={{ padding: '0.75rem 1.5rem' }}
+          >
+            🚪 Cerrar Sesión
+          </button>
         </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="text-xl text-gray-600">Cargando...</div>
-          </div>
-        ) : (
-          <>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                Resumen de hoy - {new Date().toLocaleDateString('es-ES')}
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Calorías */}
-                <div className="bg-blue-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                    Calorías
-                  </h3>
-                  <p className="text-3xl font-bold text-blue-600">
-                    {Math.round(totals.calories)}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">kcal</p>
-                </div>
-
-                {/* Proteínas */}
-                <div className="bg-green-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-green-900 mb-2">
-                    Proteínas
-                  </h3>
-                  <p className="text-3xl font-bold text-green-600">
-                    {Math.round(totals.protein)}g
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">gramos</p>
-                </div>
-
-                {/* Carbohidratos */}
-                <div className="bg-yellow-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-                    Carbohidratos
-                  </h3>
-                  <p className="text-3xl font-bold text-yellow-600">
-                    {Math.round(totals.carbs)}g
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">gramos</p>
-                </div>
-
-                {/* Grasas */}
-                <div className="bg-orange-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-orange-900 mb-2">
-                    Grasas
-                  </h3>
-                  <p className="text-3xl font-bold text-orange-600">
-                    {Math.round(totals.fat)}g
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">gramos</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Comidas del día */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                Comidas de hoy
-              </h3>
-              
-              <div className="space-y-4">
-                {/* Desayuno */}
-                <MealSection
-                  title="Desayuno"
-                  entries={groupedEntries.desayuno}
-                  onAdd={() => openModal('desayuno')}
-                  onDelete={handleDeleteEntry}
-                />
-
-                {/* Almuerzo */}
-                <MealSection
-                  title="Almuerzo"
-                  entries={groupedEntries.almuerzo}
-                  onAdd={() => openModal('almuerzo')}
-                  onDelete={handleDeleteEntry}
-                />
-
-                {/* Cena */}
-                <MealSection
-                  title="Cena"
-                  entries={groupedEntries.cena}
-                  onAdd={() => openModal('cena')}
-                  onDelete={handleDeleteEntry}
-                />
-
-                {/* Snacks */}
-                <MealSection
-                  title="Snacks"
-                  entries={groupedEntries.snack}
-                  onAdd={() => openModal('snack')}
-                  onDelete={handleDeleteEntry}
-                />
-              </div>
-            </div>
-          </>
-        )}
-      </main>
-
-      {/* Modal para añadir comida */}
-      <AddFoodModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onAdd={handleAddFood}
-        mealType={selectedMealType}
-      />
-    </div>
-  );
-}
-
-// Componente para cada sección de comida
-function MealSection({ title, entries, onAdd, onDelete }) {
-  return (
-    <div className="border border-gray-200 rounded-lg p-4">
-      <div className="flex justify-between items-center mb-3">
-        <h4 className="font-semibold text-gray-800 text-lg">{title}</h4>
-        <button
-          onClick={onAdd}
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm"
-        >
-          + Añadir
-        </button>
       </div>
 
-      {entries.length === 0 ? (
-        <p className="text-sm text-gray-500">Sin registros</p>
-      ) : (
-        <div className="space-y-2">
-          {entries.map((entry) => (
-            <div
-              key={entry.id}
-              className="flex justify-between items-center bg-gray-50 p-3 rounded-lg"
-            >
-              <div>
-                <p className="font-medium text-gray-800">{entry.food_name}</p>
-                <p className="text-sm text-gray-600">
-                  {Math.round(entry.calories)} kcal | P: {Math.round(entry.protein)}g | 
-                  C: {Math.round(entry.carbs)}g | G: {Math.round(entry.fat)}g
-                </p>
-              </div>
-              <button
-                onClick={() => onDelete(entry.id)}
-                className="text-red-500 hover:text-red-700 font-bold text-xl"
-              >
-                ×
-              </button>
+      {/* Barra de progreso de calorías */}
+      <div className="calories-progress-section">
+        <div className="progress-header">
+          <div>
+            <h2 className="progress-title">🔥 Calorías del Día</h2>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div className="progress-stats">
+              {stats.totalCalories} / {calorieLimit} kcal
             </div>
-          ))}
+            <button onClick={handleUpdateLimit} className="btn-edit-limit">
+              ✏️ Editar límite
+            </button>
+          </div>
         </div>
+
+        <div className="progress-bar-container">
+          <div 
+            className={`progress-bar-fill ${getProgressBarClass()}`}
+            style={{ width: `${progressPercentage}%` }}
+          ></div>
+          <div className="progress-percentage">
+            {progressPercentage.toFixed(0)}%
+          </div>
+        </div>
+      </div>
+
+      {/* Tarjetas de estadísticas */}
+      <div className="stats-grid">
+        <div className="stat-card" style={{ animationDelay: '0.1s' }}>
+          <div className="stat-label">🔥 Calorías</div>
+          <div className="stat-value">
+            {stats.totalCalories}
+            <span className="stat-unit">kcal</span>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ animationDelay: '0.2s' }}>
+          <div className="stat-label">💪 Proteínas</div>
+          <div className="stat-value">
+            {stats.totalProtein}
+            <span className="stat-unit">g</span>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ animationDelay: '0.3s' }}>
+          <div className="stat-label">🍞 Carbohidratos</div>
+          <div className="stat-value">
+            {stats.totalCarbs}
+            <span className="stat-unit">g</span>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ animationDelay: '0.4s' }}>
+          <div className="stat-label">🥑 Grasas</div>
+          <div className="stat-value">
+            {stats.totalFat}
+            <span className="stat-unit">g</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Secciones de comidas */}
+      <div className="foods-section">
+        <div className="section-header" style={{ marginBottom: '2rem' }}>
+          <h2 className="section-title">
+            🍽️ Mis Comidas del Día
+          </h2>
+        </div>
+
+        {Object.keys(meals).map(mealType => {
+          const mealData = meals[mealType];
+          const totals = calculateMealTotals(mealType);
+          const info = mealInfo[mealType];
+          const isExpanded = expandedMeals[mealType];
+
+          return (
+            <div key={mealType} className="meal-section">
+              <div 
+                className={`meal-header ${isExpanded ? 'expanded' : ''}`}
+                onClick={() => toggleMeal(mealType)}
+              >
+                <div className="meal-header-left">
+                  <span className="meal-icon">{info.icon}</span>
+                  <div className="meal-info">
+                    <h3>{info.name}</h3>
+                    <p className="meal-summary">
+                      {mealData.length} alimento{mealData.length !== 1 ? 's' : ''} • {info.time}
+                    </p>
+                  </div>
+                </div>
+                <div className="meal-toggle">
+                  <span className="meal-total-calories">
+                    {totals.calories.toFixed(0)} kcal
+                  </span>
+                  <span className={`toggle-icon ${isExpanded ? 'rotated' : ''}`}>
+                    ▼
+                  </span>
+                </div>
+              </div>
+
+              <div className={`meal-content ${isExpanded ? 'expanded' : ''}`}>
+                <div className="meal-foods-list">
+                  {mealData.length === 0 ? (
+                    <div className="empty-meal">
+                      <div className="empty-meal-icon">🍽️</div>
+                      <p>No hay alimentos en {info.name.toLowerCase()}</p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openAddFoodModal(mealType);
+                        }}
+                        className="btn-add-to-meal"
+                        style={{ margin: '1rem auto', display: 'inline-flex' }}
+                      >
+                        <span>+</span>
+                        Añadir alimento
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {mealData.map(food => (
+                        <div key={food.id} className="meal-food-item">
+                          <div className="meal-food-name">{food.name}</div>
+                          <div className="meal-food-macro">
+                            <span className="macro-label">Calorías</span>
+                            <span className="macro-value">{food.calories}</span>
+                          </div>
+                          <div className="meal-food-macro">
+                            <span className="macro-label">Proteínas</span>
+                            <span className="macro-value">{food.protein}g</span>
+                          </div>
+                          <div className="meal-food-macro">
+                            <span className="macro-label">Carbos</span>
+                            <span className="macro-value">{food.carbohydrates}g</span>
+                          </div>
+                          <div className="meal-food-macro">
+                            <span className="macro-label">Grasas</span>
+                            <span className="macro-value">{food.fat}g</span>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteFood(mealType, food.id)}
+                            className="btn-delete"
+                            style={{ fontSize: '0.75rem', padding: '0.5rem 0.75rem' }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+
+                      <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAddFoodModal(mealType);
+                          }}
+                          className="btn-add-to-meal"
+                        >
+                          <span>+</span>
+                          Añadir más alimentos
+                        </button>
+                      </div>
+
+                      <div className="meal-totals">
+                        <div className="meal-total-item">
+                          <div className="meal-total-label">🔥 Calorías</div>
+                          <div className="meal-total-value">{totals.calories.toFixed(0)}</div>
+                        </div>
+                        <div className="meal-total-item">
+                          <div className="meal-total-label">💪 Proteínas</div>
+                          <div className="meal-total-value">{totals.protein.toFixed(1)}g</div>
+                        </div>
+                        <div className="meal-total-item">
+                          <div className="meal-total-label">🍞 Carbos</div>
+                          <div className="meal-total-value">{totals.carbs.toFixed(1)}g</div>
+                        </div>
+                        <div className="meal-total-item">
+                          <div className="meal-total-label">🥑 Grasas</div>
+                          <div className="meal-total-value">{totals.fat.toFixed(1)}g</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {showModal && (
+        <AddFoodModal
+          onClose={() => {
+            setShowModal(false);
+            setSelectedMealType('');
+          }}
+          onAdd={handleAddFood}
+          mealType={selectedMealType}
+          mealName={mealInfo[selectedMealType]?.name}
+        />
       )}
     </div>
   );

@@ -1,185 +1,226 @@
 import { useState } from 'react';
 
-function AddFoodModal({ isOpen, onClose, onAdd, mealType }) {
-  const [formData, setFormData] = useState({
-    food_name: '',
-    calories: '',
-    protein: '',
-    carbs: '',
-    fat: '',
-    quantity: '1',
-  });
+function AddFoodModal({ onClose, onAdd, mealType, mealName }) {
   const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    category: 'Frutas',
+    calories: 0,
+    protein: 0,
+    carbohydrates: 0,
+    fat: 0,
+    fiber: 0,
+    sodium: 0
+  });
+
+  const categories = [
+    'Frutas',
+    'Verduras',
+    'Proteínas',
+    'Lácteos',
+    'Cereales',
+    'Legumbres',
+    'Snacks',
+    'Bebidas',
+    'Otros'
+  ];
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'category' || name === 'name' ? value : parseFloat(value) || 0
+    }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
-
-    try {
-      await onAdd({
-        ...formData,
-        calories: parseFloat(formData.calories),
-        protein: parseFloat(formData.protein) || 0,
-        carbs: parseFloat(formData.carbs) || 0,
-        fat: parseFloat(formData.fat) || 0,
-        quantity: parseFloat(formData.quantity) || 1,
-        meal_type: mealType,
-      });
-
-      // Limpiar formulario
-      setFormData({
-        food_name: '',
-        calories: '',
-        protein: '',
-        carbs: '',
-        fat: '',
-        quantity: '1',
-      });
-
-      onClose();
-    } catch (error) {
-      console.error('Error añadiendo comida:', error);
-      alert('Error al añadir comida');
-    } finally {
+    
+    setTimeout(() => {
+      onAdd(formData);
       setLoading(false);
-    }
+    }, 500);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-gray-800">
-            Añadir {mealType}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
-          >
-            ×
-          </button>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">
+            ✨ Añadir a {mealName || 'Comida'}
+          </h2>
+          <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>
+            Completa la información nutricional del alimento
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">
-              Nombre del alimento *
-            </label>
-            <input
-              type="text"
-              name="food_name"
-              value={formData.food_name}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ej: Pechuga de pollo"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Calorías (kcal) *
+        <form onSubmit={handleSubmit}>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">
+                🍽️ Nombre del alimento
               </label>
               <input
-                type="number"
-                name="calories"
-                value={formData.calories}
+                type="text"
+                name="name"
+                value={formData.name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="350"
-                step="0.01"
                 required
+                className="form-input"
+                placeholder="Ej: Manzana verde"
               />
             </div>
 
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Cantidad
+            <div className="form-group">
+              <label className="form-label">
+                📁 Categoría
               </label>
-              <input
-                type="number"
-                name="quantity"
-                value={formData.quantity}
+              <select
+                name="category"
+                value={formData.category}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="1"
-                step="0.01"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Proteínas (g)
-              </label>
-              <input
-                type="number"
-                name="protein"
-                value={formData.protein}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0"
-                step="0.01"
-              />
+                className="form-select"
+              >
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
             </div>
 
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Carbos (g)
-              </label>
-              <input
-                type="number"
-                name="carbs"
-                value={formData.carbs}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0"
-                step="0.01"
-              />
+            <div style={{ 
+              background: 'linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%)',
+              padding: '1.5rem',
+              borderRadius: '16px',
+              marginTop: '1rem'
+            }}>
+              <h3 style={{ 
+                fontSize: '0.875rem',
+                fontWeight: '700',
+                color: '#374151',
+                marginBottom: '1rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                📊 Información Nutricional (por 100g)
+              </h3>
+
+              <div className="nutrients-grid">
+                <div className="nutrient-item">
+                  <label className="nutrient-label">
+                    🔥 Calorías (kcal)
+                  </label>
+                  <input
+                    type="number"
+                    name="calories"
+                    value={formData.calories}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="nutrient-item">
+                  <label className="nutrient-label">
+                    💪 Proteínas (g)
+                  </label>
+                  <input
+                    type="number"
+                    name="protein"
+                    value={formData.protein}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="nutrient-item">
+                  <label className="nutrient-label">
+                    🍞 Carbohidratos (g)
+                  </label>
+                  <input
+                    type="number"
+                    name="carbohydrates"
+                    value={formData.carbohydrates}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="nutrient-item">
+                  <label className="nutrient-label">
+                    🥑 Grasas (g)
+                  </label>
+                  <input
+                    type="number"
+                    name="fat"
+                    value={formData.fat}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="nutrient-item">
+                  <label className="nutrient-label">
+                    🌾 Fibra (g)
+                  </label>
+                  <input
+                    type="number"
+                    name="fiber"
+                    value={formData.fiber}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="nutrient-item">
+                  <label className="nutrient-label">
+                    🧂 Sodio (mg)
+                  </label>
+                  <input
+                    type="number"
+                    name="sodium"
+                    value={formData.sodium}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Grasas (g)
-              </label>
-              <input
-                type="number"
-                name="fat"
-                value={formData.fat}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0"
-                step="0.01"
-              />
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-secondary"
+              >
+                ❌ Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-submit"
+              >
+                {loading ? (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    <span className="loading-spinner"></span>
+                    Añadiendo...
+                  </span>
+                ) : (
+                  '✨ Añadir Comida'
+                )}
+              </button>
             </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-            >
-              {loading ? 'Añadiendo...' : 'Añadir'}
-            </button>
           </div>
         </form>
       </div>

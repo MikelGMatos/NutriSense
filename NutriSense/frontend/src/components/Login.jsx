@@ -1,89 +1,141 @@
 import { useState } from 'react';
-import { authService } from '../services/api';
 
 function Login({ onLoginSuccess }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: ''
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    try {
-      const data = await authService.login(email, password);
-      console.log('Login exitoso:', data);
-      onLoginSuccess(data.user);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Error al iniciar sesión');
-      console.error('Error en login:', err);
-    } finally {
+    // Simulación de login (sin API)
+    setTimeout(() => {
+      if (formData.email && formData.password) {
+        const fakeToken = 'fake-token-' + Date.now();
+        localStorage.setItem('token', fakeToken);
+        localStorage.setItem('userId', '1');
+        onLoginSuccess(fakeToken);
+      } else {
+        setError('Por favor completa todos los campos');
+      }
       setLoading(false);
-    }
+    }, 1000);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
-          NutriSense
-        </h2>
-        <p className="text-center text-gray-600 mb-6">
-          Inicia sesión para continuar
-        </p>
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h1 className="login-title">
+            🍎 NutriTrack
+          </h1>
+          <p className="login-subtitle">
+            {isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
+          </p>
+        </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="message message-error">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="tu@email.com"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-grid">
+            {!isLogin && (
+              <div className="form-group">
+                <label className="form-label">
+                  Nombre de usuario
+                </label>
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  required
+                  className="form-input"
+                  placeholder="Tu nombre de usuario"
+                />
+              </div>
+            )}
 
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label className="form-label">
+                Correo electrónico
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="form-input"
+                placeholder="tu@email.com"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-          </button>
+            <div className="form-group">
+              <label className="form-label">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="form-input"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-submit"
+              style={{ width: '100%', marginTop: '1rem' }}
+            >
+              {loading ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <span className="loading-spinner"></span>
+                  {isLogin ? 'Iniciando sesión...' : 'Registrando...'}
+                </span>
+              ) : (
+                isLogin ? '🚀 Iniciar Sesión' : '✨ Registrarse'
+              )}
+            </button>
+          </div>
         </form>
 
-        <p className="text-center text-gray-600 mt-4">
-          ¿No tienes cuenta?{' '}
-          <a href="#" className="text-blue-600 hover:underline">
-            Regístrate
-          </a>
-        </p>
+        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+          <button
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError('');
+              setFormData({ username: '', email: '', password: '' });
+            }}
+            className="btn-secondary"
+            style={{ background: 'transparent', border: 'none', color: '#667eea', fontWeight: '600', cursor: 'pointer' }}
+          >
+            {isLogin 
+              ? '¿No tienes cuenta? Regístrate aquí' 
+              : '¿Ya tienes cuenta? Inicia sesión'}
+          </button>
+        </div>
       </div>
     </div>
   );

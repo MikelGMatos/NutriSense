@@ -67,4 +67,22 @@ export const authService = {
   },
 };
 
+// Servicios de diarios (NUEVO)
+export const diaryService = {
+  getDiary: async (date) => {
+    const response = await api.get(`/api/diaries/${date}`);
+    return response.data;
+  },
+
+  addEntry: async (date, entryData) => {
+    const response = await api.post(`/api/diaries/${date}/entries`, entryData);
+    return response.data;
+  },
+
+  deleteEntry: async (entryId) => {
+    const response = await api.delete(`/api/diaries/entries/${entryId}`);
+    return response.data;
+  },
+};
+
 export default api;

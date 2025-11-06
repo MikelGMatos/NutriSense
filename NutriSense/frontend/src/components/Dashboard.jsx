@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import AddFoodModal from './AddFoodModal';
+import FoodSearch from './FoodSearch';
 
 function Dashboard({ onLogout }) {
   const [calorieLimit, setCalorieLimit] = useState(2000); // Límite de calorías diario
@@ -31,7 +31,7 @@ function Dashboard({ onLogout }) {
     desayuno: { icon: '🌅', name: 'Desayuno', time: '07:00 - 10:00' },
     almuerzo: { icon: '🥪', name: 'Almuerzo', time: '10:00 - 12:00' },
     comida: { icon: '🍽️', name: 'Comida', time: '13:00 - 16:00' },
-    merienda: { icon: '🍎', name: 'Merienda', time: '17:00 - 19:00' },
+    merienda: { icon: '🎃', name: 'Merienda', time: '17:00 - 19:00' },
     cena: { icon: '🌙', name: 'Cena', time: '20:00 - 23:00' }
   };
 
@@ -132,7 +132,7 @@ function Dashboard({ onLogout }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 className="welcome-text">
-              🍎 Tu Panel Nutricional
+              🎯 Tu Panel Nutricional
             </h1>
             <p style={{ color: '#6b7280', marginTop: '0.5rem', fontSize: '1rem' }}>
               Gestiona tus comidas y controla tu nutrición diaria
@@ -263,8 +263,8 @@ function Dashboard({ onLogout }) {
                         className="btn-add-to-meal"
                         style={{ margin: '1rem auto', display: 'inline-flex' }}
                       >
-                        <span>+</span>
-                        Añadir alimento
+                        <span>🔍</span>
+                        Buscar alimento
                       </button>
                     </div>
                   ) : (
@@ -306,8 +306,8 @@ function Dashboard({ onLogout }) {
                           }}
                           className="btn-add-to-meal"
                         >
-                          <span>+</span>
-                          Añadir más alimentos
+                          <span>🔍</span>
+                          Buscar más alimentos
                         </button>
                       </div>
 
@@ -339,14 +339,14 @@ function Dashboard({ onLogout }) {
       </div>
 
       {showModal && (
-        <AddFoodModal
+        <FoodSearch
+          mealType={selectedMealType}
+          mealName={mealInfo[selectedMealType]?.name}
           onClose={() => {
             setShowModal(false);
             setSelectedMealType('');
           }}
-          onAdd={handleAddFood}
-          mealType={selectedMealType}
-          mealName={mealInfo[selectedMealType]?.name}
+          onAddFood={handleAddFood}
         />
       )}
     </div>

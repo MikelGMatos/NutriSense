@@ -15,7 +15,7 @@ app = FastAPI(
 )
 
 # Configurar CORS
-origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -27,7 +27,11 @@ app.add_middleware(
 # Health check
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "food-service"}
+    return {
+        "status": "ok", 
+        "service": "food-service",
+        "version": "1.0.0"
+    }
 
 # Incluir rutas
 app.include_router(foods.router)
@@ -38,7 +42,8 @@ async def root():
     return {
         "message": "NutriTrack Food Service API",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "version": "1.0.0"
     }
 
 if __name__ == "__main__":
@@ -48,8 +53,17 @@ if __name__ == "__main__":
     print("\n" + "="*60)
     print("🚀 NUTRITRACK FOOD SERVICE (PYTHON)")
     print("="*60)
+    print(f"🌐 URL: http://localhost:{port}")
     print(f"📚 Docs: http://localhost:{port}/docs")
     print(f"❤️  Health: http://localhost:{port}/health")
+    print(f"🔍 Search: http://localhost:{port}/api/foods/search?q=pollo")
     print("="*60 + "\n")
     
-    uvicorn.run(app, host=host, port=port, reload=True)
+    # ⭐ SOLUCIÓN: Usar string "main:app" en lugar del objeto app directamente
+    # Esto permite que --reload funcione correctamente
+    uvicorn.run(
+        "main:app",           # ← String, no objeto
+        host=host, 
+        port=port, 
+        reload=True           # ← Ahora sí funciona el reload
+    )

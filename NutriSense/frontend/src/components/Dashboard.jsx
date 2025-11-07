@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import FoodSearch from './FoodSearch';
 
 function Dashboard({ onLogout }) {
-  const [calorieLimit, setCalorieLimit] = useState(2000); // Límite de calorías diario
+  const [calorieLimit, setCalorieLimit] = useState(2000);
   const [editingLimit, setEditingLimit] = useState(false);
   const [meals, setMeals] = useState({
     desayuno: [],
@@ -35,9 +35,52 @@ function Dashboard({ onLogout }) {
     cena: { icon: '🌙', name: 'Cena', time: '20:00 - 23:00' }
   };
 
+  // ⭐ NUEVO: Cargar comidas al montar el componente
+  useEffect(() => {
+    loadTodayMeals();
+  }, []);
+
   useEffect(() => {
     calculateStats();
   }, [meals]);
+
+  // ⭐ NUEVO: Función para cargar comidas del día desde el backend
+  const loadTodayMeals = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+      const response = await fetch(`http://localhost:3001/api/diary/entries/${today}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          // Actualizar meals con los datos del servidor
+          setMeals(result.data.meals);
+          
+          // Actualizar stats si vienen en la respuesta
+          if (result.data.totals) {
+            setStats({
+              totalCalories: result.data.totals.calories,
+              totalProtein: result.data.totals.protein,
+              totalCarbs: result.data.totals.carbohydrates,
+              totalFat: result.data.totals.fat
+            });
+          }
+        }
+      } else {
+        console.error('Error al cargar comidas del día');
+      }
+    } catch (error) {
+      console.error('Error de conexión:', error);
+    }
+  };
 
   const calculateStats = () => {
     let totalCalories = 0;
@@ -72,29 +115,121 @@ function Dashboard({ onLogout }) {
     }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
   };
 
-  const handleAddFood = (newFood) => {
-    if (!selectedMealType) return;
+  // ⭐ MODIFICADO: Función para añadir alimento con guardado en backend
+  const handleAddFood = async (foodData) => {
+    if (!selectedMealType) {
+      console.error('No hay tipo de comida seleccionado');
+      return;
+    }
 
-    const foodWithId = {
-      ...newFood,
-      id: Date.now()
-    };
+    try {
+      const token = localStorage.getItem('token');
+      const today = new Date().toISOString().split('T')[0];
 
-    setMeals(prev => ({
-      ...prev,
-      [selectedMealType]: [...prev[selectedMealType], foodWithId]
-    }));
+      // Preparar datos para enviar al backend
+      const dataToSend = {
+        date: today,
+        meal_type: selectedMealType,
+        food_name: foodData.name,
+        portion: foodData.portion || `${foodData.amount}g`,
+        amount: foodData.amount || 100,
+        calories: foodData.calories,
+        protein: foodData.protein,
+        carbohydrates: foodData.carbohydrates,
+        fat: foodData.fat,
+        food_id: foodData.id || null
+      };
 
-    setShowModal(false);
-    setSelectedMealType('');
+      console.log('📤 Enviando al backend:', dataToSend);
+
+      // Enviar al backend Node.js
+      const response = await fetch('http://localhost:3001/api/diary/entries', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dataToSend)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Respuesta del servidor:', result);
+
+        // Añadir al estado local para actualización inmediata de la UI
+        const foodWithId = {
+          id: result.data.id, // ID de MySQL
+          name: foodData.name,
+          category: foodData.category,
+          brand: foodData.brand,
+          calories: foodData.calories,
+          protein: foodData.protein,
+          carbohydrates: foodData.carbohydrates,
+          fat: foodData.fat,
+          portion: foodData.portion,
+          amount: foodData.amount
+        };
+
+        setMeals(prev => ({
+          ...prev,
+          [selectedMealType]: [...prev[selectedMealType], foodWithId]
+        }));
+
+        // Cerrar modal
+        setShowModal(false);
+        setSelectedMealType('');
+
+        console.log('✨ Alimento añadido correctamente');
+        
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Error del servidor:', errorData);
+        alert('Error al añadir el alimento: ' + (errorData.error || 'Error desconocido'));
+      }
+
+    } catch (error) {
+      console.error('❌ Error de conexión:', error);
+      alert('Error de conexión con el servidor');
+    }
   };
 
-  const handleDeleteFood = (mealType, foodId) => {
-    if (window.confirm('¿Estás seguro de eliminar esta comida?')) {
-      setMeals(prev => ({
-        ...prev,
-        [mealType]: prev[mealType].filter(food => food.id !== foodId)
-      }));
+  // ⭐ MODIFICADO: Función para eliminar alimento con eliminación en backend
+  const handleDeleteFood = async (mealType, foodId) => {
+    if (!window.confirm('¿Estás seguro de eliminar esta comida?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+
+      console.log('🗑️ Eliminando entrada:', foodId);
+
+      // Eliminar del backend
+      const response = await fetch(`http://localhost:3001/api/diary/entries/${foodId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Eliminar del estado local
+        setMeals(prev => ({
+          ...prev,
+          [mealType]: prev[mealType].filter(food => food.id !== foodId)
+        }));
+
+        console.log('✅ Alimento eliminado correctamente');
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Error al eliminar:', errorData);
+        alert('Error al eliminar el alimento');
+      }
+
+    } catch (error) {
+      console.error('❌ Error de conexión:', error);
+      alert('Error de conexión con el servidor');
     }
   };
 
@@ -119,9 +254,9 @@ function Dashboard({ onLogout }) {
 
   const getProgressBarClass = () => {
     const percentage = (stats.totalCalories / calorieLimit) * 100;
-    if (percentage >= 100) return 'danger';  // Rojo si te pasas
-    if (percentage >= 80) return 'success';  // Verde cuando te acercas al objetivo
-    return '';  // Naranja por defecto (0-80%)
+    if (percentage >= 100) return 'danger';
+    if (percentage >= 80) return 'success';
+    return '';
   };
 
   const progressPercentage = Math.min((stats.totalCalories / calorieLimit) * 100, 100);
@@ -271,7 +406,7 @@ function Dashboard({ onLogout }) {
                     <>
                       {mealData.map(food => (
                         <div key={food.id} className="meal-food-item">
-                          <div className="meal-food-name">{food.name}</div>
+                          <div className="meal-food-name">{food.name || food.food_name}</div>
                           <div className="meal-food-macro">
                             <span className="macro-label">Calorías</span>
                             <span className="macro-value">{food.calories}</span>

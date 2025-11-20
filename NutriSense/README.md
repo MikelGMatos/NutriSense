@@ -142,7 +142,11 @@ python etl/import_sample_foods.py
 
 Este script importará 12 alimentos de ejemplo con información nutricional completa.
 
-> **Nota**: Opcionalmente, puede importar datos reales desde Open Food Facts ejecutando `python etl/import_from_openfoodfacts.py`
+> **Nota**: Para importar datos reales desde Open Food Facts (500+ productos españoles), ejecute:
+> ```bash
+> python etl/import_from_openfoodfacts.py
+> ```
+> Este proceso tarda 2-3 minutos y requiere conexión a Internet. Los datos se pueden actualizar en cualquier momento ejecutando el mismo script nuevamente.
 
 ### 5. Configuración del frontend
 
@@ -281,6 +285,24 @@ Puede modificar la configuración del proyecto editando los siguientes archivos:
 - `frontend/.env`: Para cambiar las URLs de las APIs backend
 
 ## Base de datos
+
+### Actualización de datos de alimentos
+
+La base de datos de alimentos se puede actualizar manualmente en cualquier momento ejecutando:
+
+```bash
+cd service-python
+python etl/import_from_openfoodfacts.py
+```
+
+Este script:
+- Importa 500 productos reales de Open Food Facts España
+- Mantiene intactos los productos manuales existentes
+- Reemplaza los productos anteriores de Open Food Facts
+- Tarda aproximadamente 2-3 minutos
+- Requiere conexión a Internet
+
+**Recomendación**: Actualice la base de datos mensualmente para obtener nuevos productos y datos actualizados.
 
 ### MySQL - Tablas principales
 

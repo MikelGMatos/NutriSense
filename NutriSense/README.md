@@ -8,7 +8,7 @@ La forma más sencilla de ejecutar NutriTrack es usando Docker Compose, que conf
 
 ### Requisitos previos
 
-- **Docker Desktop** 4.0 o superior
+- **Docker Desktop** 4.0 o superior: https://www.docker.com/products/docker-desktop/
 - **Docker Compose** 2.0 o superior (incluido con Docker Desktop)
 - 4GB de RAM disponible
 - 2GB de espacio en disco

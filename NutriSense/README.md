@@ -103,51 +103,6 @@ Al iniciar por primera vez, el sistema:
 
 No necesitas ejecutar scripts de importación manualmente.
 
-### Solución de problemas comunes con Docker
-
-#### El frontend no arranca (error de Node.js)
-
-**Error:** `You are using Node.js 18.20.8. Vite requires Node.js version 20.19+`
-
-**Solución:** Asegúrate de que el Dockerfile del frontend use `FROM node:20-alpine`
-
-#### El backend Python está en bucle
-
-**Síntoma:** El servicio `backend-python` se reinicia constantemente
-
-**Solución:** El script ETL está pidiendo confirmación. Usa el archivo `import_sample_foods.py` actualizado que no requiere interacción.
-
-#### Puertos ya en uso
-
-**Error:** `Bind for 0.0.0.0:3001 failed: port is already allocated`
-
-**Solución:** Detén los servicios que estén usando esos puertos:
-
-```bash
-# Windows
-netstat -ano | findstr :3001
-taskkill /PID [PID] /F
-
-# Linux/Mac
-lsof -i :3001
-kill -9 [PID]
-```
-
-O cambia los puertos en `docker-compose.yml`
-
-#### Reiniciar desde cero
-
-Si necesitas empezar de nuevo con bases de datos vacías:
-
-```bash
-docker-compose down -v
-docker-compose up --build
-```
-
-Esto eliminará todos los volúmenes (datos) y reconstruirá las imágenes.
-
----
-
 ## 📦 Estructura del proyecto
 
 ```

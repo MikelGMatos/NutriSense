@@ -57,7 +57,7 @@ CREATE TABLE diary_entries (
   carbohydrates DECIMAL(5,1),
   fat DECIMAL(5,1),
   quantity DECIMAL(6,1) DEFAULT 1,
-  meal_type ENUM('desayuno', 'almuerzo', 'comida', 'merienda', 'cena') NOT NULL,
+  meal_type VARCHAR(20) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (diary_id) REFERENCES diaries(id) ON DELETE CASCADE
 );

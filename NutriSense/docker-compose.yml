@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  # ============================================================
+  # BASE DE DATOS MYSQL
+  # ============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: nutritrack-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: nutrition_db
+      MYSQL_USER: nutritrack
+      MYSQL_PASSWORD: nutritrack123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init-mysql.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nutritrack-network
+
+  # ============================================================
+  # BASE DE DATOS MONGODB
+  # ============================================================
+  mongodb:
+    image: mongo:6
+    container_name: nutritrack-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nutritrack-network
+
+  # ============================================================
+  # BACKEND NODE.JS
+  # ============================================================
+  backend-node:
+    build:
+      context: ./backend/service-node
+      dockerfile: Dockerfile
+    container_name: nutritrack-backend-node
+    ports:
+      - "3001:3001"
+    environment:
+      # MySQL Configuration
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: nutritrack
+      DB_PASSWORD: nutritrack123
+      DB_NAME: nutrition_db
+      
+      # JWT Configuration
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      
+      # Server Configuration
+      PORT: 3001
+      NODE_ENV: development
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend/service-node:/app
+      - /app/node_modules
+    command: npm run dev
+    networks:
+      - nutritrack-network
+    restart: unless-stopped
+
+  # ============================================================
+  # BACKEND PYTHON FASTAPI
+  # ============================================================
+  backend-python:
+    build:
+      context: ./backend/service-python
+      dockerfile: Dockerfile
+    container_name: nutritrack-backend-python
+    ports:
+      - "8000:8000"
+    environment:
+      # MongoDB Configuration
+      MONGO_URI: mongodb://mongodb:27017
+      MONGO_DB: nutrition_db
+      
+      # Server Configuration
+      PORT: 8000
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend/service-python:/app
+    command: sh -c "python etl/import_sample_foods.py && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - nutritrack-network
+    restart: unless-stopped
+
+  # ============================================================
+  # FRONTEND REACT
+  # ============================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nutritrack-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      # API URLs
+      VITE_API_NODE_URL: http://localhost:3001
+      VITE_API_PYTHON_URL: http://localhost:8000
+    depends_on:
+      - backend-node
+      - backend-python
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - nutritrack-network
+    restart: unless-stopped
+
+# ============================================================
+# VOLUMES PERSISTENTES
+# ============================================================
+volumes:
+  mysql_data:
+    driver: local
+  mongo_data:
+    driver: local
+
+# ============================================================
+# NETWORK
+# ============================================================
+networks:
+  nutritrack-network:
+    driver: bridge

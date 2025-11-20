@@ -2,413 +2,126 @@
 
 NutriTrack es una aplicación web de seguimiento nutricional que permite a los usuarios registrar sus comidas diarias, consultar información nutricional de alimentos y monitorear sus macronutrientes en tiempo real. El proyecto implementa una arquitectura de microservicios moderna con React, Node.js y Python.
 
-## Requisitos previos
+## 🚀 Inicio Rápido con Docker (Recomendado)
 
-- Node.js 18.0 o superior
-- Python 3.9 o superior
-- MySQL 8.0 o superior
-- MongoDB 5.0 o superior
-- npm 8.0 o superior
-- pip 21.0 o superior
+La forma más sencilla de ejecutar NutriTrack es usando Docker Compose, que configura automáticamente todos los servicios necesarios.
 
-## Estructura del proyecto
+### Requisitos previos
 
-El proyecto está dividido en tres módulos principales:
-- `frontend`: Interfaz de usuario basada en React con Vite
-- `service-node`: Backend de autenticación y diarios con Node.js/Express y MySQL
-- `service-python`: Backend de catálogo de alimentos con Python/FastAPI y MongoDB
+- **Docker Desktop** 4.0 o superior
+- **Docker Compose** 2.0 o superior (incluido con Docker Desktop)
+- 4GB de RAM disponible
+- 2GB de espacio en disco
 
-## Instalación y configuración
+### Instalación y ejecución
 
-### 1. Configuración de la base de datos MySQL
-
-Cree la base de datos y las tablas necesarias ejecutando los siguientes comandos en MySQL:
-
-```sql
-CREATE DATABASE nutrition_db;
-USE nutrition_db;
-
--- Tabla de usuarios
-CREATE TABLE users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  name VARCHAR(255),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Tabla de diarios
-CREATE TABLE diaries (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  date DATE NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  UNIQUE KEY unique_user_date (user_id, date)
-);
-
--- Tabla de entradas de comidas
-CREATE TABLE diary_entries (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  diary_id INT NOT NULL,
-  food_name VARCHAR(255) NOT NULL,
-  calories INT NOT NULL,
-  protein DECIMAL(5,1),
-  carbohydrates DECIMAL(5,1),
-  fat DECIMAL(5,1),
-  quantity DECIMAL(6,1) DEFAULT 1,
-  meal_type VARCHAR(20) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (diary_id) REFERENCES diaries(id) ON DELETE CASCADE
-);
-
--- Índices para optimizar consultas
-CREATE INDEX idx_diary_user_date ON diaries(user_id, date);
-CREATE INDEX idx_entry_diary ON diary_entries(diary_id);
-CREATE INDEX idx_entry_meal_type ON diary_entries(meal_type);
+1. **Clonar el repositorio:**
+```bash
+git clone [URL_DEL_REPOSITORIO]
+cd NutriTrack
 ```
 
-### 2. Configuración de MongoDB
+2. **Iniciar todos los servicios:**
+```bash
+docker-compose up
+```
 
-Inicie MongoDB y cree la base de datos:
+O para reconstruir las imágenes:
+```bash
+docker-compose up --build
+```
+
+3. **Acceder a la aplicación:**
+
+Una vez que veas estos mensajes en la consola, la aplicación estará lista:
+
+```
+✅ MySQL: ready for connections (puerto 3306)
+✅ MongoDB: Waiting for connections (puerto 27017)
+✅ Backend Node.js: Servidor corriendo en http://localhost:3001
+✅ Backend Python: Uvicorn running on http://0.0.0.0:8000
+✅ Frontend: VITE ready - http://localhost:5173/
+```
+
+**Abre tu navegador en:** http://localhost:5173
+
+### Comandos útiles de Docker
 
 ```bash
-mongosh
+# Iniciar servicios (en segundo plano)
+docker-compose up -d
 
-use nutrition_db
-db.createCollection("foods")
+# Ver logs de todos los servicios
+docker-compose logs -f
+
+# Ver logs de un servicio específico
+docker-compose logs -f frontend
+docker-compose logs -f backend-node
+docker-compose logs -f backend-python
+
+# Detener todos los servicios
+docker-compose down
+
+# Detener y eliminar volúmenes (reiniciar bases de datos)
+docker-compose down -v
+
+# Reiniciar un servicio específico
+docker-compose restart backend-node
+
+# Ver estado de los servicios
+docker-compose ps
 ```
 
-### 3. Configuración del backend Node.js
+### Estructura de contenedores
 
-Navegue a la carpeta `service-node` e instale las dependencias:
+Docker Compose crea 5 contenedores:
 
-```bash
-cd service-node
-npm install
-```
+| Servicio | Puerto | Descripción |
+|----------|--------|-------------|
+| **frontend** | 5173 | Interfaz React con Vite |
+| **backend-node** | 3001 | API de autenticación y diarios |
+| **backend-python** | 8000 | API de catálogo de alimentos |
+| **mysql** | 3306 | Base de datos relacional |
+| **mongodb** | 27017 | Base de datos de alimentos |
 
-Cree un archivo `.env` con la siguiente configuración:
+### Verificación del sistema
 
-```env
-# Puerto del servidor
-PORT=3001
+Puedes verificar que todos los servicios están funcionando:
 
-# Configuración de MySQL
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=tu_contraseña_mysql
-DB_NAME=nutrition_db
-DB_PORT=3306
+1. **Frontend**: http://localhost:5173 - Pantalla de login
+2. **Backend Node.js**: http://localhost:3001/health - `{"status":"ok"}`
+3. **Backend Python**: http://localhost:8000/health - `{"ok":true}`
+4. **Documentación API**: http://localhost:8000/docs - Interfaz Swagger
+5. **Alimentos disponibles**: http://localhost:8000/foods - Lista de 54 alimentos
 
-# Clave secreta para JWT
-JWT_SECRET=tu_clave_secreta_super_segura_cambiar_en_produccion
+### Datos precargados
 
-# CORS Origins
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+Al iniciar por primera vez, el sistema:
+- ✅ Crea automáticamente las tablas en MySQL
+- ✅ Importa 54 alimentos españoles en MongoDB
+- ✅ Configura las bases de datos necesarias
 
-# Entorno
-NODE_ENV=development
-```
+No necesitas ejecutar scripts de importación manualmente.
 
-> **Nota**: Modifique `DB_PASSWORD` y `JWT_SECRET` con valores seguros apropiados para su entorno.
+### Solución de problemas comunes con Docker
 
-### 4. Configuración del backend Python
+#### El frontend no arranca (error de Node.js)
 
-Navegue a la carpeta `service-python` y cree un entorno virtual:
+**Error:** `You are using Node.js 18.20.8. Vite requires Node.js version 20.19+`
 
-```bash
-cd service-python
-python -m venv venv
+**Solución:** Asegúrate de que el Dockerfile del frontend use `FROM node:20-alpine`
 
-# Activar entorno virtual
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-```
+#### El backend Python está en bucle
 
-Instale las dependencias:
+**Síntoma:** El servicio `backend-python` se reinicia constantemente
 
-```bash
-pip install --break-system-packages -r requirements.txt
-```
+**Solución:** El script ETL está pidiendo confirmación. Usa el archivo `import_sample_foods.py` actualizado que no requiere interacción.
 
-Importe los datos de ejemplo en MongoDB:
+#### Puertos ya en uso
 
-```bash
-python etl/import_sample_foods.py
-```
+**Error:** `Bind for 0.0.0.0:3001 failed: port is already allocated`
 
-Este script importará 12 alimentos de ejemplo con información nutricional completa.
-
-> **Nota**: Para importar datos reales desde Open Food Facts (500+ productos españoles), ejecute:
-> ```bash
-> python etl/import_from_openfoodfacts.py
-> ```
-> Este proceso tarda 2-3 minutos y requiere conexión a Internet. Los datos se pueden actualizar en cualquier momento ejecutando el mismo script nuevamente.
-
-### 5. Configuración del frontend
-
-Navegue a la carpeta `frontend` e instale las dependencias:
-
-```bash
-cd frontend
-npm install
-```
-
-## Ejecución del proyecto
-
-Para ejecutar el proyecto completo, necesita iniciar los tres servicios en terminales separadas:
-
-### 1. Iniciar el backend Python (FastAPI)
-
-```bash
-cd service-python
-# Activar entorno virtual si no está activo
-python main.py
-```
-
-El servicio se iniciará en el puerto 8000.
-
-### 2. Iniciar el backend Node.js
-
-```bash
-cd service-node
-npm start
-```
-
-Para desarrollo con auto-reload:
-
-```bash
-npm run dev
-```
-
-El servicio se iniciará en el puerto 3001.
-
-### 3. Iniciar el frontend React
-
-```bash
-cd frontend
-npm run dev
-```
-
-El frontend se iniciará en el puerto 5173.
-
-## Acceso a la aplicación
-
-Una vez que todos los servicios estén en funcionamiento, puede acceder a NutriTrack a través de:
-
-```
-http://localhost:5173
-```
-
-### Verificación de servicios
-
-Puede verificar que los servicios backend están funcionando correctamente accediendo a:
-
-- **Health check Node.js**: http://localhost:3001/health
-- **Health check Python**: http://localhost:8000/health
-- **Documentación API Python**: http://localhost:8000/docs
-
-## Características principales
-
-### Sistema de usuarios
-- Registro de usuarios con validación de contraseñas
-- Autenticación mediante JWT
-- Gestión de sesiones con tokens
-
-### Dashboard nutricional
-- Seguimiento de 5 categorías de comidas: desayuno, almuerzo, comida, merienda y cena
-- Visualización de macronutrientes en tarjetas estadísticas
-- Barra de progreso de calorías con código de colores
-- Límite de calorías personalizable
-- Cálculo automático de totales diarios
-
-### Búsqueda de alimentos
-- Búsqueda en tiempo real desde el catálogo MongoDB
-- Más de 12 alimentos precargados con información nutricional
-- Selección de porciones predefinidas (por unidad, volumen o peso)
-- Preview de macros antes de añadir alimentos
-- Integración con Open Food Facts API
-
-## Arquitectura del sistema
-
-```
-Frontend React (5173) ──┐
-                        ├──> Backend Node.js (3001) ──> MySQL (3306)
-                        │    - Autenticación JWT
-                        │    - Gestión de diarios
-                        │    - Entradas de comidas
-                        │
-                        └──> Backend Python (8000) ──> MongoDB (27017)
-                             - Catálogo de alimentos
-                             - Búsqueda de alimentos
-                             - ETL Open Food Facts
-```
-
-### Flujo de datos principal
-
-1. **Autenticación**: Frontend → Node.js → MySQL → JWT
-2. **Búsqueda de alimentos**: Frontend → Python → MongoDB → Resultados
-3. **Añadir comida**: Frontend calcula macros → Node.js → MySQL
-
-## API Endpoints
-
-### Backend Node.js (Puerto 3001)
-
-#### Autenticación (`/api/auth`)
-- `POST /api/auth/register` - Registrar nuevo usuario
-- `POST /api/auth/login` - Iniciar sesión
-- `GET /api/auth/profile` - Obtener perfil (requiere autenticación)
-
-#### Diarios (`/api/diary`)
-- `GET /api/diary/entries/:date` - Obtener entradas del día (requiere autenticación)
-- `POST /api/diary/entries/:date` - Añadir entrada (requiere autenticación)
-- `DELETE /api/diary/entries/:entryId` - Eliminar entrada (requiere autenticación)
-
-### Backend Python (Puerto 8000)
-
-#### Alimentos (`/api/foods`)
-- `GET /api/foods/search?q={query}&limit={limit}` - Buscar alimentos
-- `GET /api/foods/categories` - Listar categorías
-- `GET /api/foods/{food_id}` - Obtener alimento por ID
-- `GET /api/foods` - Listar todos los alimentos (con paginación)
-- `POST /api/foods` - Crear nuevo alimento
-
-## Configuración personalizada
-
-Puede modificar la configuración del proyecto editando los siguientes archivos:
-
-- `service-node/.env`: Para cambiar la configuración del backend Node.js (puerto, conexión MySQL, JWT secret)
-- `service-python/.env`: Para cambiar la configuración del backend Python (puerto, conexión MongoDB)
-- `frontend/.env`: Para cambiar las URLs de las APIs backend
-
-## Base de datos
-
-### Actualización de datos de alimentos
-
-La base de datos de alimentos se puede actualizar manualmente en cualquier momento ejecutando:
-
-```bash
-cd service-python
-python etl/import_from_openfoodfacts.py
-```
-
-Este script:
-- Importa 500 productos reales de Open Food Facts España
-- Mantiene intactos los productos manuales existentes
-- Reemplaza los productos anteriores de Open Food Facts
-- Tarda aproximadamente 2-3 minutos
-- Requiere conexión a Internet
-
-**Recomendación**: Actualice la base de datos mensualmente para obtener nuevos productos y datos actualizados.
-
-### MySQL - Tablas principales
-
-- **users**: Información de usuarios registrados
-- **diaries**: Diarios por usuario y fecha (un diario por día)
-- **diary_entries**: Entradas de comidas en cada diario
-
-### MongoDB - Colección foods
-
-Estructura del documento de alimento:
-
-```json
-{
-  "name": "Pechuga de pollo",
-  "category": "Carnes",
-  "brand": null,
-  "nutritional_info_per_100g": {
-    "calories": 165,
-    "protein": 31,
-    "carbohydrates": 0,
-    "fat": 3.6,
-    "fiber": 0,
-    "sugar": 0,
-    "sodium": 74
-  },
-  "portions": [
-    {
-      "name": "unidad (150g)",
-      "weight_grams": 150,
-      "multiplier": 1.5
-    }
-  ],
-  "source": "manual",
-  "created_at": "2024-11-20T10:00:00Z",
-  "updated_at": "2024-11-20T10:00:00Z"
-}
-```
-
-## Tecnologías utilizadas
-
-### Frontend
-- React 18
-- React Router DOM
-- Axios
-- Vite
-- CSS3 personalizado
-
-### Backend Node.js
-- Node.js 18+
-- Express
-- MySQL2 (con Promises)
-- bcryptjs
-- jsonwebtoken
-- dotenv
-- cors
-
-### Backend Python
-- Python 3.9+
-- FastAPI
-- Uvicorn
-- PyMongo
-- Motor (MongoDB async)
-- Pydantic
-- python-dotenv
-
-### Bases de datos
-- MySQL 8.0
-- MongoDB 5.0
-
-## Solución de problemas comunes
-
-### Error de conexión a MySQL
-
-Verifique que MySQL esté en ejecución y que las credenciales en el archivo `.env` sean correctas:
-
-```bash
-# Windows
-net start MySQL80
-
-# Linux/Mac
-sudo systemctl start mysql
-```
-
-### Error de conexión a MongoDB
-
-Verifique que MongoDB esté en ejecución:
-
-```bash
-# Windows
-net start MongoDB
-
-# Linux/Mac
-sudo systemctl start mongod
-```
-
-### Error "JWT_SECRET not configured"
-
-Asegúrese de que el archivo `.env` existe en `service-node/` y contiene la variable `JWT_SECRET` sin espacios ni comillas adicionales.
-
-### Error CORS en el navegador
-
-Verifique que ambos backends tengan CORS configurado correctamente y que el frontend esté en el puerto 5173.
-
-### Puerto ya en uso
-
-Si algún puerto (3001, 8000, 5173) está en uso, puede cambiar el puerto en el archivo `.env` correspondiente o detener el proceso que lo está utilizando:
+**Solución:** Detén los servicios que estén usando esos puertos:
 
 ```bash
 # Windows
@@ -420,36 +133,427 @@ lsof -i :3001
 kill -9 [PID]
 ```
 
-### Búsqueda de alimentos no funciona
+O cambia los puertos en `docker-compose.yml`
 
-Verifique que MongoDB tiene datos importados:
+#### Reiniciar desde cero
 
+Si necesitas empezar de nuevo con bases de datos vacías:
+
+```bash
+docker-compose down -v
+docker-compose up --build
+```
+
+Esto eliminará todos los volúmenes (datos) y reconstruirá las imágenes.
+
+---
+
+## 📦 Estructura del proyecto
+
+```
+NutriTrack/
+├── docker-compose.yml          # Configuración de servicios
+├── frontend/                   # React + Vite
+│   ├── Dockerfile
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.js
+├── backend/
+│   ├── service-node/          # Node.js + Express
+│   │   ├── Dockerfile
+│   │   ├── server.js
+│   │   ├── package.json
+│   │   └── .env.example
+│   └── service-python/        # Python + FastAPI
+│       ├── Dockerfile
+│       ├── main.py
+│       ├── requirements.txt
+│       └── etl/
+│           └── import_sample_foods.py
+└── scripts/
+    └── init-mysql.sql         # Schema de MySQL
+```
+
+---
+
+## 🏗️ Arquitectura del sistema
+
+```
+┌─────────────────┐
+│  Frontend React │ (Puerto 5173)
+│    (Vite)       │
+└────────┬────────┘
+         │
+    ┌────┴─────────────────────┐
+    │                          │
+    ▼                          ▼
+┌──────────────┐      ┌──────────────┐
+│ Backend Node │      │ Backend Python│
+│   (Express)  │      │   (FastAPI)   │
+│ Puerto 3001  │      │  Puerto 8000  │
+└──────┬───────┘      └───────┬───────┘
+       │                      │
+       ▼                      ▼
+┌──────────────┐      ┌──────────────┐
+│    MySQL     │      │   MongoDB    │
+│  Puerto 3306 │      │ Puerto 27017 │
+└──────────────┘      └──────────────┘
+```
+
+### Flujo de datos
+
+1. **Autenticación**: Frontend → Node.js → MySQL → JWT Token
+2. **Búsqueda de alimentos**: Frontend → Python → MongoDB → Resultados
+3. **Añadir comida al diario**: Frontend → Node.js → MySQL
+4. **Consultar diario**: Frontend → Node.js → MySQL
+
+---
+
+## 🎯 Características principales
+
+### Sistema de usuarios
+- ✅ Registro con validación de email y contraseña
+- ✅ Autenticación mediante JWT
+- ✅ Gestión de sesiones seguras
+- ✅ Protección de rutas privadas
+
+### Dashboard nutricional
+- ✅ Seguimiento de 5 comidas diarias: desayuno, almuerzo, comida, merienda y cena
+- ✅ Visualización de macronutrientes en tiempo real
+- ✅ Barra de progreso de calorías con código de colores
+- ✅ Cálculo automático de totales diarios
+- ✅ Límite de calorías personalizable
+
+### Búsqueda de alimentos
+- ✅ Búsqueda en tiempo real desde MongoDB
+- ✅ 54 alimentos españoles precargados
+- ✅ Información nutricional detallada por 100g
+- ✅ Selección de porciones predefinidas
+- ✅ 12 categorías organizadas
+
+---
+
+## 📚 API Endpoints
+
+### Backend Node.js (Puerto 3001)
+
+#### Autenticación (`/api/auth`)
+```
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/profile (requiere autenticación)
+```
+
+#### Diarios (`/api/diary`)
+```
+GET    /api/diary/entries/:date (requiere autenticación)
+POST   /api/diary/entries/:date (requiere autenticación)
+DELETE /api/diary/entries/:entryId (requiere autenticación)
+```
+
+### Backend Python (Puerto 8000)
+
+#### Alimentos (`/foods`)
+```
+GET  /foods/search?q={query}&limit={limit}
+GET  /foods/categories
+GET  /foods/{food_id}
+GET  /foods (con paginación)
+POST /foods
+```
+
+#### Health Check
+```
+GET /health
+```
+
+**Documentación interactiva:** http://localhost:8000/docs
+
+---
+
+## 🗄️ Base de datos
+
+### MySQL - Tablas principales
+
+**users**
+```sql
+- id (PK)
+- email (UNIQUE)
+- password_hash
+- name
+- created_at
+```
+
+**diaries**
+```sql
+- id (PK)
+- user_id (FK → users)
+- date (UNIQUE con user_id)
+- created_at
+```
+
+**diary_entries**
+```sql
+- id (PK)
+- diary_id (FK → diaries)
+- food_name
+- calories, protein, carbohydrates, fat
+- quantity
+- meal_type (desayuno, almuerzo, comida, merienda, cena)
+- created_at
+```
+
+### MongoDB - Colección `foods`
+
+Estructura del documento:
+
+```json
+{
+  "name": "Pechuga de pollo",
+  "category": "Carnes y Embutidos",
+  "nutrients": {
+    "calories": 165,
+    "protein": 31,
+    "carbs": 0,
+    "fat": 3.6,
+    "fiber": 0
+  },
+  "portions": [
+    {
+      "name": "filete",
+      "grams": 150
+    }
+  ],
+  "source": "manual"
+}
+```
+
+### Categorías de alimentos disponibles
+
+1. Lácteos (6 productos)
+2. Carnes y Embutidos (6 productos)
+3. Pescados y Mariscos (4 productos)
+4. Huevos (2 productos)
+5. Cereales y Granos (5 productos)
+6. Legumbres (3 productos)
+7. Verduras y Hortalizas (8 productos)
+8. Frutas (8 productos)
+9. Frutos Secos (3 productos)
+10. Aceites y Grasas (2 productos)
+11. Panadería (4 productos)
+12. Bebidas (3 productos)
+
+**Total: 54 alimentos**
+
+---
+
+## 🛠️ Tecnologías utilizadas
+
+### Frontend
+- **React** 18 - Biblioteca de interfaz de usuario
+- **React Router DOM** - Navegación
+- **Axios** - Cliente HTTP
+- **Vite** - Build tool y dev server
+- **CSS3** - Estilos personalizados con gradientes y animaciones
+
+### Backend Node.js
+- **Node.js** 18+
+- **Express** - Framework web
+- **MySQL2** - Driver de MySQL con Promises
+- **bcryptjs** - Hash de contraseñas
+- **jsonwebtoken** - Autenticación JWT
+- **cors** - Manejo de CORS
+- **dotenv** - Variables de entorno
+
+### Backend Python
+- **Python** 3.11+
+- **FastAPI** - Framework web moderno
+- **Uvicorn** - Servidor ASGI
+- **PyMongo** - Driver de MongoDB
+- **Pydantic** - Validación de datos
+- **python-dotenv** - Variables de entorno
+
+### Bases de datos
+- **MySQL** 8.0 - Datos relacionales (usuarios, diarios)
+- **MongoDB** 6.0 - Datos no relacionales (alimentos)
+
+### DevOps
+- **Docker** - Contenedorización
+- **Docker Compose** - Orquestación de servicios
+
+---
+
+## 🔧 Configuración avanzada
+
+### Variables de entorno
+
+Puedes personalizar la configuración editando `docker-compose.yml`:
+
+**Backend Node.js:**
+```yaml
+environment:
+  - PORT=3001
+  - DB_HOST=mysql
+  - DB_USER=root
+  - DB_PASSWORD=rootpassword
+  - DB_NAME=nutrition_db
+  - JWT_SECRET=your-super-secret-key
+```
+
+**Backend Python:**
+```yaml
+environment:
+  - MONGO_URI=mongodb://mongodb:27017
+  - MONGO_DB=nutrition_db
+```
+
+### Cambiar puertos
+
+Si necesitas cambiar los puertos expuestos, edita `docker-compose.yml`:
+
+```yaml
+services:
+  frontend:
+    ports:
+      - "8080:5173"  # Cambiar 8080 por el puerto deseado
+```
+
+---
+
+## 🐛 Desarrollo manual (sin Docker)
+
+Si prefieres ejecutar los servicios manualmente para desarrollo avanzado:
+
+### Requisitos
+- Node.js 20.0+
+- Python 3.11+
+- MySQL 8.0+
+- MongoDB 6.0+
+
+### 1. Configurar bases de datos
+
+**MySQL:**
+```bash
+mysql -u root -p < scripts/init-mysql.sql
+```
+
+**MongoDB:**
 ```bash
 mongosh
 use nutrition_db
-db.foods.countDocuments()
+db.createCollection("foods")
 ```
 
-Si está vacío, ejecute el script de importación:
+### 2. Backend Node.js
 
 ```bash
-cd service-python
-python etl/import_sample_foods.py
+cd backend/service-node
+npm install
+cp .env.example .env
+# Editar .env con tus credenciales
+npm run dev
 ```
 
-## Verificación del sistema
+### 3. Backend Python
 
-Puede verificar que todos los componentes están funcionando correctamente accediendo a:
+```bash
+cd backend/service-python
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python etl/import_sample_foods.py
+python main.py
+```
 
-1. **Frontend**: http://localhost:5173 - Debe mostrar la pantalla de login
-2. **Backend Node.js**: http://localhost:3001/health - Debe retornar `{ status: 'ok' }`
-3. **Backend Python**: http://localhost:8000/health - Debe retornar `{ status: 'ok' }`
-4. **Documentación API**: http://localhost:8000/docs - Debe mostrar la interfaz Swagger
+### 4. Frontend
 
-## Contacto y soporte
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-Para obtener ayuda o reportar problemas, puede crear un nuevo issue en el repositorio del proyecto.
+---
 
-## Licencia
+## 🧪 Testing
 
-Este proyecto está licenciado bajo la licencia MIT. Consulte el archivo LICENSE para más detalles.
+### Probar endpoints con cURL
+
+**Registrar usuario:**
+```bash
+curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123","name":"Test User"}'
+```
+
+**Login:**
+```bash
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+
+**Buscar alimentos:**
+```bash
+curl http://localhost:8000/foods/search?q=pollo&limit=5
+```
+
+---
+
+## 📝 Notas importantes
+
+### Seguridad
+- ⚠️ Cambia `JWT_SECRET` en producción
+- ⚠️ Usa contraseñas seguras para MySQL
+- ⚠️ Habilita HTTPS en producción
+- ⚠️ No expongas puertos de bases de datos públicamente
+
+### Rendimiento
+- El sistema está optimizado para ~1000 alimentos en MongoDB
+- MySQL maneja eficientemente hasta 100k entradas de diario
+- Frontend usa lazy loading para mejor performance
+
+### Backup
+Para hacer backup de los datos:
+
+```bash
+# MySQL
+docker exec nutritrack-mysql mysqldump -u root -prootpassword nutrition_db > backup.sql
+
+# MongoDB
+docker exec nutritrack-mongodb mongodump --out /backup
+docker cp nutritrack-mongodb:/backup ./mongodb-backup
+```
+
+---
+
+## 🤝 Contribución
+
+Para contribuir al proyecto:
+
+1. Fork el repositorio
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+---
+
+## 📄 Licencia
+
+Este proyecto está licenciado bajo la licencia MIT. Consulta el archivo LICENSE para más detalles.
+
+---
+
+## 📞 Soporte
+
+¿Necesitas ayuda? Puedes:
+- Crear un issue en GitHub
+- Consultar la documentación de la API en http://localhost:8000/docs
+- Revisar los logs de Docker: `docker-compose logs -f`
+
+---
+
+## 🎉 ¡Disfruta de NutriTrack!
+
+Ahora estás listo para empezar a rastrear tu nutrición. ¡Buena suerte con tus objetivos de salud! 🥗💪

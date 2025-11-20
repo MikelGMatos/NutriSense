@@ -1,5 +1,5 @@
 # ============================================================
-# DOCKERFILE - Backend Python FastAPI
+# DOCKERFILE - Backend Python FastAPI (con Open Food Facts)
 # ============================================================
 
 FROM python:3.11-slim
@@ -27,6 +27,12 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copiar el resto del código
 COPY . .
 
+# Copiar script de inicialización
+COPY start-python.sh /app/start-python.sh
+
+# Dar permisos de ejecución al script
+RUN chmod +x /app/start-python.sh
+
 # Crear directorio para logs
 RUN mkdir -p logs
 
@@ -41,5 +47,5 @@ ENV PORT=8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/health')"
 
-# Comando por defecto
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Comando por defecto - usa el script de inicialización
+CMD ["/app/start-python.sh"]

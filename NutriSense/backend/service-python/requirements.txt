@@ -1,6 +1,15 @@
+# Framework principal
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
-pymongo==4.10.1
+
+# Base de datos MongoDB
+pymongo==4.9.1         
+motor==3.6.0
+
+# Utilidades
 python-dotenv==1.0.1
 pydantic==2.10.1
-motor==3.6.0
+
+# Para ETL
+aiohttp==3.10.11
+requests==2.32.3

@@ -121,7 +121,7 @@ function Login({ onLoginSuccess, onSwitchToRegister }) {
         <div className="login-card">
           <div className="login-header">
             <h1 className="login-title">
-              🎯 NutriSense
+              🎯 NutriTrack
             </h1>
             <p className="login-subtitle">
               Bienvenido de nuevo

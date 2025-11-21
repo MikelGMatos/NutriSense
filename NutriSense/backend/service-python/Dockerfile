@@ -1,14 +1,12 @@
 # ============================================================
-# DOCKERFILE - Backend Python FastAPI (con Open Food Facts)
+# DOCKERFILE - Backend Python FastAPI
 # ============================================================
 
 FROM python:3.11-slim
 
-# Información del mantenedor
 LABEL maintainer="NutriTrack Team"
-LABEL description="Backend Python FastAPI para NutriTrack - Gestión de catálogo de alimentos"
+LABEL description="Backend Python FastAPI para NutriTrack"
 
-# Establecer directorio de trabajo
 WORKDIR /app
 
 # Instalar dependencias del sistema
@@ -27,14 +25,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copiar el resto del código
 COPY . .
 
-# Copiar script de inicialización
-COPY start-python.sh /app/start-python.sh
-
-# Dar permisos de ejecución al script
-RUN chmod +x /app/start-python.sh
-
 # Crear directorio para logs
 RUN mkdir -p logs
+
+# Hacer ejecutable el script de inicio
+RUN chmod +x /app/start-python.sh
 
 # Exponer el puerto
 EXPOSE 8000
@@ -47,5 +42,5 @@ ENV PORT=8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/health')"
 
-# Comando por defecto - usa el script de inicialización
+# Ejecutar script de inicio
 CMD ["/app/start-python.sh"]

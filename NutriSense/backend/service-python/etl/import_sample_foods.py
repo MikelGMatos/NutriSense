@@ -1,165 +1,314 @@
-#!/usr/bin/env python3
-"""
-Script de importación de alimentos de muestra para NutriTrack
-Versión sin confirmación interactiva para Docker
-"""
-
+"""Script para importar alimentos desde Open Food Facts API ESPAÑA (SIN INPUT INTERACTIVO)"""
 import sys
-from pymongo import MongoClient
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import aiohttp
+import asyncio
+from app.config.database import foods_collection
 from datetime import datetime
 
-# Configuración de MongoDB
-MONGO_URI = "mongodb://mongodb:27017"
-MONGO_DB = "nutrition_db"
-COLLECTION_NAME = "foods"
+# Usar la API ESPAÑOLA directamente
+BASE_URL = "https://es.openfoodfacts.org"
 
-def get_mongo_client():
-    """Obtener cliente de MongoDB"""
+# Mapeo mejorado de categorías en español
+CATEGORY_MAPPING = {
+    'carne': 'Carnes y Embutidos', 'carnes': 'Carnes y Embutidos', 'pollo': 'Carnes y Embutidos',
+    'aves': 'Carnes y Embutidos', 'cerdo': 'Carnes y Embutidos', 'ternera': 'Carnes y Embutidos',
+    'embutido': 'Carnes y Embutidos', 'jamón': 'Carnes y Embutidos', 'chorizo': 'Carnes y Embutidos',
+    'pescado': 'Pescados y Mariscos', 'marisco': 'Pescados y Mariscos', 'salmón': 'Pescados y Mariscos',
+    'atún': 'Pescados y Mariscos', 'merluza': 'Pescados y Mariscos',
+    'lácteo': 'Lácteos', 'leche': 'Lácteos', 'queso': 'Lácteos', 'yogur': 'Lácteos',
+    'yogurt': 'Lácteos', 'nata': 'Lácteos', 'mantequilla': 'Lácteos',
+    'fruta': 'Frutas', 'manzana': 'Frutas', 'plátano': 'Frutas', 'naranja': 'Frutas',
+    'verdura': 'Verduras y Hortalizas', 'hortaliza': 'Verduras y Hortalizas',
+    'ensalada': 'Verduras y Hortalizas', 'tomate': 'Verduras y Hortalizas',
+    'legumbre': 'Legumbres', 'lenteja': 'Legumbres', 'garbanzo': 'Legumbres',
+    'cereal': 'Cereales y Granos', 'pan': 'Panadería', 'pasta': 'Cereales y Granos',
+    'arroz': 'Cereales y Granos', 'grano': 'Cereales y Granos',
+    'bebida': 'Bebidas', 'zumo': 'Bebidas', 'agua': 'Bebidas', 'café': 'Bebidas', 'té': 'Bebidas',
+    'refresco': 'Bebidas', 'snack': 'Snacks y Aperitivos', 'aperitivo': 'Snacks y Aperitivos',
+    'patata': 'Snacks y Aperitivos', 'galleta': 'Dulces y Repostería',
+    'chocolate': 'Dulces y Repostería', 'dulce': 'Dulces y Repostería', 'postre': 'Dulces y Repostería',
+    'fruto seco': 'Frutos Secos', 'nuez': 'Frutos Secos', 'almendra': 'Frutos Secos',
+    'huevo': 'Huevos', 'aceite': 'Aceites y Grasas', 'grasa': 'Aceites y Grasas',
+    'salsa': 'Salsas y Condimentos', 'condimento': 'Salsas y Condimentos',
+    'plato preparado': 'Platos Preparados', 'pizza': 'Platos Preparados',
+    # Inglés también por si acaso
+    'meat': 'Carnes y Embutidos', 'fish': 'Pescados y Mariscos', 'dairy': 'Lácteos',
+    'fruit': 'Frutas', 'vegetable': 'Verduras y Hortalizas', 'bread': 'Panadería',
+    'beverage': 'Bebidas', 'snack': 'Snacks y Aperitivos', 'dessert': 'Dulces y Repostería',
+}
+
+def determine_category(categories_str):
+    """Determinar categoría en español"""
+    if not categories_str:
+        return "Otros"
+    categories_lower = categories_str.lower()
+    for key, spanish_cat in CATEGORY_MAPPING.items():
+        if key in categories_lower:
+            return spanish_cat
+    return "Otros"
+
+def create_smart_portions(product_name):
+    """Crear porciones inteligentes según el tipo de alimento"""
+    portions = [{"name": "100g", "weight_grams": 100, "multiplier": 1}]
+    name_lower = product_name.lower()
+    
+    if any(word in name_lower for word in ['leche', 'zumo', 'bebida', 'agua', 'refresco']):
+        portions.extend([
+            {"name": "vaso (250ml)", "weight_grams": 250, "multiplier": 2.5},
+            {"name": "taza (200ml)", "weight_grams": 200, "multiplier": 2}
+        ])
+    elif any(word in name_lower for word in ['yogur', 'yoghurt']):
+        portions.append({"name": "unidad (125g)", "weight_grams": 125, "multiplier": 1.25})
+    elif any(word in name_lower for word in ['pan', 'galleta', 'biscuit']):
+        portions.extend([
+            {"name": "rebanada (30g)", "weight_grams": 30, "multiplier": 0.3},
+            {"name": "porción (50g)", "weight_grams": 50, "multiplier": 0.5}
+        ])
+    elif any(word in name_lower for word in ['queso']):
+        portions.extend([
+            {"name": "loncha (25g)", "weight_grams": 25, "multiplier": 0.25},
+            {"name": "porción (50g)", "weight_grams": 50, "multiplier": 0.5}
+        ])
+    elif any(word in name_lower for word in ['pasta', 'arroz', 'macarrones', 'espagueti']):
+        portions.extend([
+            {"name": "plato (150g)", "weight_grams": 150, "multiplier": 1.5},
+            {"name": "porción (200g)", "weight_grams": 200, "multiplier": 2}
+        ])
+    elif any(word in name_lower for word in ['carne', 'pollo', 'pescado', 'ternera', 'cerdo', 'pechuga', 'filete']):
+        portions.extend([
+            {"name": "filete (150g)", "weight_grams": 150, "multiplier": 1.5},
+            {"name": "porción (200g)", "weight_grams": 200, "multiplier": 2}
+        ])
+    elif any(word in name_lower for word in ['frutos secos', 'almendra', 'nuez', 'avellana', 'pistacho']):
+        portions.append({"name": "puñado (30g)", "weight_grams": 30, "multiplier": 0.3})
+    else:
+        portions.extend([
+            {"name": "porción (150g)", "weight_grams": 150, "multiplier": 1.5},
+            {"name": "porción (200g)", "weight_grams": 200, "multiplier": 2}
+        ])
+    
+    return portions
+
+def is_valid_product(product):
+    """Validar que el producto tenga datos de calidad"""
+    product_name = product.get("product_name", "").strip()
+    if not product_name or len(product_name) < 3:
+        return False
+    
+    nutriments = product.get("nutriments", {})
+    has_energy = (
+        nutriments.get("energy-kcal_100g") is not None or
+        nutriments.get("energy_100g") is not None
+    )
+    if not has_energy:
+        return False
+    
+    has_macros = (
+        nutriments.get("proteins_100g") is not None or
+        nutriments.get("carbohydrates_100g") is not None or
+        nutriments.get("fat_100g") is not None
+    )
+    if not has_macros:
+        return False
+    
+    return True
+
+async def fetch_products_batch(session, page=1, page_size=50):
+    """Obtener productos de Open Food Facts España con páginas más pequeñas"""
+    url = f"{BASE_URL}/cgi/search.pl"
+    
+    # Parámetros simplificados para la API española
+    params = {
+        "search_simple": "1",
+        "action": "process",
+        "json": "1",
+        "page": str(page),
+        "page_size": str(page_size),
+        "sort_by": "unique_scans_n",
+        "tagtype_0": "countries",
+        "tag_contains_0": "contains",
+        "tag_0": "españa"
+    }
+    
     try:
-        client = MongoClient(MONGO_URI)
-        # Verificar conexión
-        client.server_info()
-        return client
-    except Exception as e:
-        print(f"❌ Error conectando a MongoDB: {e}")
-        sys.exit(1)
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with session.get(url, params=params, timeout=timeout) as response:
+            if response.status == 200:
+                try:
+                    data = await response.json()
+                    products = data.get("products", [])
+                    return products
+                except:
+                    return []
+            else:
+                return []
+    except asyncio.TimeoutError:
+        print("T", end="", flush=True)  # T = Timeout
+        return []
+    except Exception:
+        print("E", end="", flush=True)  # E = Error
+        return []
 
-def import_extended_foods():
-    """Importar base de datos extendida de alimentos españoles"""
+def transform_product(product):
+    """Transformar producto de Open Food Facts a nuestro formato"""
+    try:
+        nutriments = product.get("nutriments", {})
+        product_name = product.get("product_name", "").strip()
+        
+        if not product_name:
+            return None
+        
+        calories = nutriments.get("energy-kcal_100g")
+        if calories is None:
+            energy_kj = nutriments.get("energy_100g")
+            if energy_kj:
+                calories = energy_kj / 4.184
+            else:
+                calories = 0
+        
+        categories_str = product.get("categories", "")
+        category = determine_category(categories_str)
+        portions = create_smart_portions(product_name)
+        
+        return {
+            "name": product_name,
+            "brand": product.get("brands", "").strip() or None,
+            "category": category,
+            "nutritional_info_per_100g": {
+                "calories": round(calories, 1) if calories else 0,
+                "protein": round(nutriments.get("proteins_100g", 0), 1),
+                "carbohydrates": round(nutriments.get("carbohydrates_100g", 0), 1),
+                "fat": round(nutriments.get("fat_100g", 0), 1),
+                "fiber": round(nutriments.get("fiber_100g", 0), 1),
+                "sugar": round(nutriments.get("sugars_100g", 0), 1),
+                "sodium": round(nutriments.get("sodium_100g", 0) * 1000, 1) if nutriments.get("sodium_100g") else 0
+            },
+            "portions": portions,
+            "barcode": product.get("code", ""),
+            "nutriscore": product.get("nutriscore_grade", "").upper() if product.get("nutriscore_grade") else None,
+            "source": "openfoodfacts",
+            "created_at": datetime.now(),
+            "updated_at": datetime.now()
+        }
+    except Exception:
+        return None
+
+async def import_from_openfoodfacts(total_products=500):
+    """Importar productos desde Open Food Facts España - SIN INPUT INTERACTIVO"""
     
     print("\n" + "="*70)
-    print("🚀 IMPORTACIÓN DE ALIMENTOS DE MUESTRA EXTENDIDOS")
+    print("🚀 IMPORTACIÓN DE ALIMENTOS DESDE OPEN FOOD FACTS (ESPAÑA)")
     print("="*70)
     
-    client = get_mongo_client()
-    db = client[MONGO_DB]
-    collection = db[COLLECTION_NAME]
+    # Verificar productos existentes
+    existing_off = foods_collection.count_documents({"source": "openfoodfacts"})
+    existing_manual = foods_collection.count_documents({"source": "manual"})
     
-    # Verificar si ya hay alimentos
-    existing_count = collection.count_documents({"source": "manual"})
-    print(f"📊 Alimentos manuales existentes: {existing_count}\n")
+    print(f"📊 Alimentos actuales:")
+    print(f"   • OpenFoodFacts: {existing_off}")
+    print(f"   • Manuales: {existing_manual}")
     
-    # Si ya existen alimentos, salir sin hacer nada
-    if existing_count > 0:
-        print("⚠️  Ya tienes alimentos en la base de datos.")
-        print("✅ Saltando importación para evitar duplicados.\n")
-        print("💡 Si deseas reimportar, primero elimina la base de datos:")
-        print("   docker-compose exec backend-python python -c \"from pymongo import MongoClient; MongoClient('mongodb://mongodb:27017')['nutrition_db']['foods'].delete_many({'source': 'manual'})\"")
+    # ELIMINAR INPUT INTERACTIVO - Siempre reemplazar automáticamente
+    if existing_off > 0:
+        print(f"\n⚠️  Ya tienes {existing_off} productos de OpenFoodFacts.")
+        print("🔄 Reemplazando automáticamente...")
+    
+    # Eliminar productos OpenFoodFacts antiguos (mantiene manuales)
+    deleted = foods_collection.delete_many({"source": "openfoodfacts"})
+    print(f"🗑️  Eliminados {deleted.deleted_count} productos antiguos de OpenFoodFacts")
+    print(f"✅ Los {existing_manual} productos manuales se mantienen intactos\n")
+    
+    all_valid_products = []
+    
+    # Usar páginas más pequeñas (50 productos por página en lugar de 100)
+    page_size = 50
+    timeout = aiohttp.ClientTimeout(total=60)
+    
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        pages_needed = (total_products // page_size) + 2  # +2 por seguridad
+        
+        print(f"📥 Descargando productos de España...")
+        print(f"   Buscando {total_products} productos válidos...")
+        print(f"   [.=OK T=Timeout E=Error]")
+        print("-" * 70)
+        
+        page = 1
+        attempts = 0
+        max_attempts = pages_needed * 2  # Intentar el doble por si hay timeouts
+        
+        while len(all_valid_products) < total_products and attempts < max_attempts:
+            attempts += 1
+            
+            if attempts % 5 == 1:  # Cada 5 intentos mostrar progreso
+                print(f"\n  Progreso: {len(all_valid_products)}/{total_products} productos | ", end="", flush=True)
+            
+            print(".", end="", flush=True)
+            
+            products = await fetch_products_batch(session, page, page_size)
+            
+            if products:
+                # Filtrar productos válidos
+                for product in products:
+                    if len(all_valid_products) >= total_products:
+                        break
+                    if is_valid_product(product):
+                        transformed = transform_product(product)
+                        if transformed:
+                            all_valid_products.append(transformed)
+                
+                page += 1
+            
+            # Pausa pequeña entre peticiones
+            await asyncio.sleep(0.3)
+        
+        print()  # Nueva línea después del progreso
+    
+    # Insertar en MongoDB
+    if all_valid_products:
+        final_products = all_valid_products[:total_products]
+        print(f"\n💾 Insertando {len(final_products)} productos en MongoDB...")
+        result = foods_collection.insert_many(final_products)
+        
+        print("\n" + "="*70)
+        print("✅ IMPORTACIÓN COMPLETADA")
         print("="*70)
-        client.close()
-        return
-    
-    # Base de datos extendida de alimentos españoles
-    extended_foods = [
-        # LÁCTEOS
-        {"name": "Leche entera", "category": "Lácteos", "nutrients": {"calories": 61, "protein": 3.2, "carbs": 4.8, "fat": 3.3, "fiber": 0}, "portions": [{"name": "vaso", "grams": 250}], "source": "manual"},
-        {"name": "Leche desnatada", "category": "Lácteos", "nutrients": {"calories": 34, "protein": 3.4, "carbs": 5.0, "fat": 0.1, "fiber": 0}, "portions": [{"name": "vaso", "grams": 250}], "source": "manual"},
-        {"name": "Yogur natural", "category": "Lácteos", "nutrients": {"calories": 61, "protein": 3.5, "carbs": 4.7, "fat": 3.3, "fiber": 0}, "portions": [{"name": "unidad", "grams": 125}], "source": "manual"},
-        {"name": "Queso manchego", "category": "Lácteos", "nutrients": {"calories": 392, "protein": 29, "carbs": 0.5, "fat": 32, "fiber": 0}, "portions": [{"name": "loncha", "grams": 30}], "source": "manual"},
-        {"name": "Requesón", "category": "Lácteos", "nutrients": {"calories": 98, "protein": 11, "carbs": 3.4, "fat": 4.3, "fiber": 0}, "portions": [{"name": "tarrina", "grams": 100}], "source": "manual"},
-        {"name": "Queso fresco", "category": "Lácteos", "nutrients": {"calories": 174, "protein": 13.6, "carbs": 3.9, "fat": 13, "fiber": 0}, "portions": [{"name": "porción", "grams": 50}], "source": "manual"},
+        print(f"📊 Total productos importados: {len(result.inserted_ids)}")
         
-        # CARNES Y EMBUTIDOS
-        {"name": "Pechuga de pollo", "category": "Carnes y Embutidos", "nutrients": {"calories": 165, "protein": 31, "carbs": 0, "fat": 3.6, "fiber": 0}, "portions": [{"name": "filete", "grams": 150}], "source": "manual"},
-        {"name": "Muslo de pollo", "category": "Carnes y Embutidos", "nutrients": {"calories": 209, "protein": 26, "carbs": 0, "fat": 11, "fiber": 0}, "portions": [{"name": "pieza", "grams": 125}], "source": "manual"},
-        {"name": "Ternera", "category": "Carnes y Embutidos", "nutrients": {"calories": 250, "protein": 26, "carbs": 0, "fat": 16, "fiber": 0}, "portions": [{"name": "filete", "grams": 150}], "source": "manual"},
-        {"name": "Cerdo", "category": "Carnes y Embutidos", "nutrients": {"calories": 242, "protein": 27, "carbs": 0, "fat": 14, "fiber": 0}, "portions": [{"name": "chuleta", "grams": 150}], "source": "manual"},
-        {"name": "Jamón serrano", "category": "Carnes y Embutidos", "nutrients": {"calories": 163, "protein": 30.5, "carbs": 0, "fat": 4.2, "fiber": 0}, "portions": [{"name": "loncha", "grams": 20}], "source": "manual"},
-        {"name": "Chorizo", "category": "Carnes y Embutidos", "nutrients": {"calories": 455, "protein": 24, "carbs": 2, "fat": 38, "fiber": 0}, "portions": [{"name": "rodaja", "grams": 30}], "source": "manual"},
+        # Estadísticas por categoría
+        categories = foods_collection.distinct('category', {"source": "openfoodfacts"})
+        print(f"\n📁 Categorías disponibles ({len(categories)}):")
+        for cat in sorted(categories):
+            count = foods_collection.count_documents({"category": cat, "source": "openfoodfacts"})
+            print(f"   • {cat}: {count} productos")
         
-        # PESCADOS Y MARISCOS
-        {"name": "Salmón", "category": "Pescados y Mariscos", "nutrients": {"calories": 208, "protein": 20, "carbs": 0, "fat": 13, "fiber": 0}, "portions": [{"name": "filete", "grams": 150}], "source": "manual"},
-        {"name": "Merluza", "category": "Pescados y Mariscos", "nutrients": {"calories": 86, "protein": 17, "carbs": 0, "fat": 1.8, "fiber": 0}, "portions": [{"name": "filete", "grams": 150}], "source": "manual"},
-        {"name": "Atún en lata", "category": "Pescados y Mariscos", "nutrients": {"calories": 116, "protein": 26, "carbs": 0, "fat": 1, "fiber": 0}, "portions": [{"name": "lata", "grams": 80}], "source": "manual"},
-        {"name": "Gambas", "category": "Pescados y Mariscos", "nutrients": {"calories": 71, "protein": 13.6, "carbs": 0.9, "fat": 0.6, "fiber": 0}, "portions": [{"name": "ración", "grams": 100}], "source": "manual"},
+        # Estadísticas por fuente
+        print(f"\n📚 Productos por fuente:")
+        total_off = foods_collection.count_documents({"source": "openfoodfacts"})
+        total_manual = foods_collection.count_documents({"source": "manual"})
+        print(f"   • openfoodfacts: {total_off} productos")
+        print(f"   • manual: {total_manual} productos")
+        print(f"   • TOTAL: {total_off + total_manual} productos")
         
-        # HUEVOS
-        {"name": "Huevo entero", "category": "Huevos", "nutrients": {"calories": 155, "protein": 13, "carbs": 1.1, "fat": 11, "fiber": 0}, "portions": [{"name": "unidad", "grams": 60}], "source": "manual"},
-        {"name": "Clara de huevo", "category": "Huevos", "nutrients": {"calories": 52, "protein": 11, "carbs": 0.7, "fat": 0.2, "fiber": 0}, "portions": [{"name": "clara", "grams": 33}], "source": "manual"},
+        print("\n🎉 Base de datos lista para usar!")
+        print("="*70 + "\n")
         
-        # CEREALES Y GRANOS
-        {"name": "Arroz blanco", "category": "Cereales y Granos", "nutrients": {"calories": 130, "protein": 2.7, "carbs": 28, "fat": 0.3, "fiber": 0.4}, "portions": [{"name": "taza cocido", "grams": 150}], "source": "manual"},
-        {"name": "Pasta", "category": "Cereales y Granos", "nutrients": {"calories": 158, "protein": 5.8, "carbs": 31, "fat": 0.9, "fiber": 1.8}, "portions": [{"name": "plato cocida", "grams": 100}], "source": "manual"},
-        {"name": "Pan integral", "category": "Cereales y Granos", "nutrients": {"calories": 247, "protein": 7.9, "carbs": 41, "fat": 3.5, "fiber": 7.4}, "portions": [{"name": "rebanada", "grams": 30}], "source": "manual"},
-        {"name": "Avena", "category": "Cereales y Granos", "nutrients": {"calories": 389, "protein": 16.9, "carbs": 66, "fat": 6.9, "fiber": 10.6}, "portions": [{"name": "taza", "grams": 80}], "source": "manual"},
-        {"name": "Quinoa", "category": "Cereales y Granos", "nutrients": {"calories": 120, "protein": 4.4, "carbs": 21, "fat": 1.9, "fiber": 2.8}, "portions": [{"name": "taza cocida", "grams": 185}], "source": "manual"},
-        
-        # LEGUMBRES
-        {"name": "Lentejas", "category": "Legumbres", "nutrients": {"calories": 116, "protein": 9, "carbs": 20, "fat": 0.4, "fiber": 7.9}, "portions": [{"name": "taza cocida", "grams": 200}], "source": "manual"},
-        {"name": "Garbanzos", "category": "Legumbres", "nutrients": {"calories": 164, "protein": 8.9, "carbs": 27, "fat": 2.6, "fiber": 7.6}, "portions": [{"name": "taza cocida", "grams": 165}], "source": "manual"},
-        {"name": "Alubias", "category": "Legumbres", "nutrients": {"calories": 127, "protein": 8.7, "carbs": 23, "fat": 0.5, "fiber": 6.4}, "portions": [{"name": "taza cocida", "grams": 180}], "source": "manual"},
-        
-        # VERDURAS Y HORTALIZAS
-        {"name": "Tomate", "category": "Verduras y Hortalizas", "nutrients": {"calories": 18, "protein": 0.9, "carbs": 3.9, "fat": 0.2, "fiber": 1.2}, "portions": [{"name": "unidad mediana", "grams": 150}], "source": "manual"},
-        {"name": "Lechuga", "category": "Verduras y Hortalizas", "nutrients": {"calories": 15, "protein": 1.4, "carbs": 2.9, "fat": 0.2, "fiber": 1.3}, "portions": [{"name": "bol", "grams": 100}], "source": "manual"},
-        {"name": "Zanahoria", "category": "Verduras y Hortalizas", "nutrients": {"calories": 41, "protein": 0.9, "carbs": 10, "fat": 0.2, "fiber": 2.8}, "portions": [{"name": "unidad", "grams": 120}], "source": "manual"},
-        {"name": "Brócoli", "category": "Verduras y Hortalizas", "nutrients": {"calories": 34, "protein": 2.8, "carbs": 7, "fat": 0.4, "fiber": 2.6}, "portions": [{"name": "taza", "grams": 90}], "source": "manual"},
-        {"name": "Espinacas", "category": "Verduras y Hortalizas", "nutrients": {"calories": 23, "protein": 2.9, "carbs": 3.6, "fat": 0.4, "fiber": 2.2}, "portions": [{"name": "taza cocida", "grams": 180}], "source": "manual"},
-        {"name": "Pimiento", "category": "Verduras y Hortalizas", "nutrients": {"calories": 20, "protein": 0.9, "carbs": 4.6, "fat": 0.2, "fiber": 1.7}, "portions": [{"name": "unidad", "grams": 120}], "source": "manual"},
-        {"name": "Cebolla", "category": "Verduras y Hortalizas", "nutrients": {"calories": 40, "protein": 1.1, "carbs": 9.3, "fat": 0.1, "fiber": 1.7}, "portions": [{"name": "unidad", "grams": 110}], "source": "manual"},
-        {"name": "Pepino", "category": "Verduras y Hortalizas", "nutrients": {"calories": 15, "protein": 0.7, "carbs": 3.6, "fat": 0.1, "fiber": 0.5}, "portions": [{"name": "unidad", "grams": 300}], "source": "manual"},
-        
-        # FRUTAS
-        {"name": "Manzana", "category": "Frutas", "nutrients": {"calories": 52, "protein": 0.3, "carbs": 14, "fat": 0.2, "fiber": 2.4}, "portions": [{"name": "unidad", "grams": 182}], "source": "manual"},
-        {"name": "Plátano", "category": "Frutas", "nutrients": {"calories": 89, "protein": 1.1, "carbs": 23, "fat": 0.3, "fiber": 2.6}, "portions": [{"name": "unidad", "grams": 118}], "source": "manual"},
-        {"name": "Naranja", "category": "Frutas", "nutrients": {"calories": 47, "protein": 0.9, "carbs": 12, "fat": 0.1, "fiber": 2.4}, "portions": [{"name": "unidad", "grams": 140}], "source": "manual"},
-        {"name": "Fresas", "category": "Frutas", "nutrients": {"calories": 32, "protein": 0.7, "carbs": 7.7, "fat": 0.3, "fiber": 2}, "portions": [{"name": "taza", "grams": 150}], "source": "manual"},
-        {"name": "Kiwi", "category": "Frutas", "nutrients": {"calories": 61, "protein": 1.1, "carbs": 15, "fat": 0.5, "fiber": 3}, "portions": [{"name": "unidad", "grams": 69}], "source": "manual"},
-        {"name": "Uvas", "category": "Frutas", "nutrients": {"calories": 69, "protein": 0.7, "carbs": 18, "fat": 0.2, "fiber": 0.9}, "portions": [{"name": "racimo", "grams": 150}], "source": "manual"},
-        {"name": "Sandía", "category": "Frutas", "nutrients": {"calories": 30, "protein": 0.6, "carbs": 7.6, "fat": 0.2, "fiber": 0.4}, "portions": [{"name": "rodaja", "grams": 280}], "source": "manual"},
-        {"name": "Pera", "category": "Frutas", "nutrients": {"calories": 57, "protein": 0.4, "carbs": 15, "fat": 0.1, "fiber": 3.1}, "portions": [{"name": "unidad", "grams": 178}], "source": "manual"},
-        
-        # FRUTOS SECOS
-        {"name": "Almendras", "category": "Frutos Secos", "nutrients": {"calories": 579, "protein": 21, "carbs": 22, "fat": 50, "fiber": 12}, "portions": [{"name": "puñado", "grams": 30}], "source": "manual"},
-        {"name": "Nueces", "category": "Frutos Secos", "nutrients": {"calories": 654, "protein": 15, "carbs": 14, "fat": 65, "fiber": 6.7}, "portions": [{"name": "puñado", "grams": 30}], "source": "manual"},
-        {"name": "Cacahuetes", "category": "Frutos Secos", "nutrients": {"calories": 567, "protein": 26, "carbs": 16, "fat": 49, "fiber": 8.5}, "portions": [{"name": "puñado", "grams": 30}], "source": "manual"},
-        
-        # ACEITES Y GRASAS
-        {"name": "Aceite de oliva", "category": "Aceites y Grasas", "nutrients": {"calories": 884, "protein": 0, "carbs": 0, "fat": 100, "fiber": 0}, "portions": [{"name": "cucharada", "grams": 14}], "source": "manual"},
-        {"name": "Aguacate", "category": "Aceites y Grasas", "nutrients": {"calories": 160, "protein": 2, "carbs": 8.5, "fat": 15, "fiber": 6.7}, "portions": [{"name": "mitad", "grams": 100}], "source": "manual"},
-        
-        # PANADERÍA
-        {"name": "Pan blanco", "category": "Panadería", "nutrients": {"calories": 265, "protein": 9, "carbs": 49, "fat": 3.2, "fiber": 2.7}, "portions": [{"name": "rebanada", "grams": 30}], "source": "manual"},
-        {"name": "Croissant", "category": "Panadería", "nutrients": {"calories": 406, "protein": 8.2, "carbs": 46, "fat": 21, "fiber": 2.6}, "portions": [{"name": "unidad", "grams": 50}], "source": "manual"},
-        {"name": "Galletas María", "category": "Panadería", "nutrients": {"calories": 436, "protein": 7, "carbs": 75, "fat": 12, "fiber": 2.5}, "portions": [{"name": "galleta", "grams": 8}], "source": "manual"},
-        {"name": "Tostadas", "category": "Panadería", "nutrients": {"calories": 373, "protein": 11, "carbs": 72, "fat": 5, "fiber": 4.5}, "portions": [{"name": "unidad", "grams": 10}], "source": "manual"},
-        
-        # BEBIDAS
-        {"name": "Café solo", "category": "Bebidas", "nutrients": {"calories": 2, "protein": 0.1, "carbs": 0, "fat": 0, "fiber": 0}, "portions": [{"name": "taza", "grams": 240}], "source": "manual"},
-        {"name": "Té verde", "category": "Bebidas", "nutrients": {"calories": 1, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0}, "portions": [{"name": "taza", "grams": 240}], "source": "manual"},
-        {"name": "Zumo de naranja", "category": "Bebidas", "nutrients": {"calories": 45, "protein": 0.7, "carbs": 10, "fat": 0.2, "fiber": 0.2}, "portions": [{"name": "vaso", "grams": 240}], "source": "manual"},
-    ]
-    
-    # Insertar alimentos
-    result = collection.insert_many(extended_foods)
-    
-    print("="*70)
-    print("✅ IMPORTACIÓN COMPLETADA")
-    print("="*70)
-    print(f"📊 Total productos importados: {len(result.inserted_ids)}")
-    
-    # Mostrar estadísticas por categoría
-    pipeline = [
-        {"$match": {"source": "manual"}},
-        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
-        {"$sort": {"_id": 1}}
-    ]
-    
-    categories = list(collection.aggregate(pipeline))
-    
-    print(f"\n📁 Categorías disponibles ({len(categories)}):")
-    for cat in categories:
-        print(f"   • {cat['_id']}: {cat['count']} productos")
-    
-    # Total de alimentos
-    total = collection.count_documents({"source": "manual"})
-    print(f"\n📚 Total en base de datos:")
-    print(f"   • Total: {total} productos")
-    
-    print("\n🎉 Base de datos lista para usar!")
-    print("="*70 + "\n")
-    
-    client.close()
+        return len(result.inserted_ids)
+    else:
+        print("\n" + "="*70)
+        print("❌ NO SE PUDIERON IMPORTAR PRODUCTOS")
+        print("="*70)
+        print("\n🔍 Posibles causas:")
+        print("   1. Problemas de conexión a Internet")
+        print("   2. La API de OpenFoodFacts está caída")
+        print("   3. Firewall bloqueando la conexión")
+        print("\n💡 Solución alternativa:")
+        print("   Ya tienes alimentos manuales en la base de datos")
+        print("="*70 + "\n")
+        return 0
 
 if __name__ == "__main__":
-    import_extended_foods()
+    # Importar 500 productos de España
+    asyncio.run(import_from_openfoodfacts(500))

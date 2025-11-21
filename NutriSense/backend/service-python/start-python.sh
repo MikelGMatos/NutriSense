@@ -1,40 +1,50 @@
-#!/bin/bash
+#!/bin/sh
 # ============================================================
-# SCRIPT DE INICIALIZACIÓN - Backend Python
+# Script de inicio para Backend Python - NutriTrack
 # ============================================================
-# Este script se ejecuta al iniciar el contenedor y:
-# 1. Importa los 54 alimentos manuales (siempre)
-# 2. Importa los 500+ alimentos de Open Food Facts 
-# 3. Inicia el servidor Uvicorn
 
-echo "=================================================="
+set -e  # Salir si cualquier comando falla
+
+echo "======================================================"
 echo "🚀 Iniciando Backend Python - NutriTrack"
-echo "=================================================="
+echo "======================================================"
+echo ""
 
-# Esperar a que MongoDB esté disponible
+# Esperar a MongoDB
 echo "⏳ Esperando a MongoDB..."
-while ! python -c "from pymongo import MongoClient; MongoClient('mongodb://mongodb:27017').server_info()" 2>/dev/null; do
+while ! python -c "from pymongo import MongoClient; MongoClient('mongodb://mongodb:27017', serverSelectionTimeoutMS=2000).server_info()" 2>/dev/null; do
     echo "   MongoDB no disponible, reintentando en 2 segundos..."
     sleep 2
 done
 echo "✅ MongoDB disponible"
-
-# Importar alimentos manuales
 echo ""
-echo "📦 Importando alimentos manuales..."
-python etl/import_sample_foods.py
-echo "✅ Alimentos manuales importados"
 
-# Importar alimentos de Open Food Facts 
- Descomenta la siguiente línea para importar automáticamente
- echo ""
- echo "🌐 Importando alimentos de Open Food Facts..."
- python etl/import_from_openfoodfacts.py || echo "⚠️  No se pudieron importar alimentos de Open Food Facts (continuando...)"
- echo "✅ Alimentos de Open Food Facts importados"
+# Verificar que el archivo existe
+if [ -f "/app/etl/import_from_openfoodfacts.py" ]; then
+    echo "✅ Archivo import_from_openfoodfacts.py encontrado"
+    echo ""
+    echo "🌐 Importando alimentos de Open Food Facts (España)..."
+    echo "   (Esto puede tardar 2-3 minutos...)"
+    echo ""
+    
+    # Ejecutar el script de importación
+    python /app/etl/import_from_openfoodfacts.py
+    
+    echo ""
+    echo "✅ Importación completada"
+else
+    echo "❌ ERROR: No se encontró /app/etl/import_from_openfoodfacts.py"
+    echo "📂 Archivos disponibles en /app/etl:"
+    ls -la /app/etl/
+    echo ""
+    echo "⚠️  Continuando sin importar alimentos..."
+fi
 
-# Iniciar servidor
 echo ""
-echo "=================================================="
+echo "======================================================"
 echo "🚀 Iniciando servidor Uvicorn en puerto 8000"
-echo "=================================================="
+echo "======================================================"
+echo ""
+
+# Iniciar el servidor
 exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload

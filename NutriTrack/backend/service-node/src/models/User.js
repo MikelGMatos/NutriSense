@@ -21,13 +21,64 @@ class User {
     return rows[0];
   }
 
-  // Buscar por ID
+  // Buscar por ID - ACTUALIZADO con campos de calculadora
   static async findById(id) {
     const [rows] = await db.execute(
-      'SELECT id, email, name, created_at FROM users WHERE id = ?',
+      `SELECT 
+        id, 
+        email, 
+        name, 
+        age, 
+        height, 
+        weight, 
+        gender, 
+        activity_level, 
+        goal, 
+        daily_calories, 
+        daily_protein, 
+        daily_carbs, 
+        daily_fat, 
+        created_at 
+      FROM users 
+      WHERE id = ?`,
       [id]
     );
     return rows[0];
+  }
+
+  // 🆕 NUEVO: Actualizar perfil de usuario (calculadora de calorías)
+  static async updateProfile(userId, profileData) {
+    const {
+      age,
+      height,
+      weight,
+      gender,
+      activity_level,
+      goal,
+      daily_calories,
+      daily_protein,
+      daily_carbs,
+      daily_fat
+    } = profileData;
+
+    const [result] = await db.execute(
+      `UPDATE users 
+       SET age = ?, 
+           height = ?, 
+           weight = ?, 
+           gender = ?, 
+           activity_level = ?, 
+           goal = ?,
+           daily_calories = ?, 
+           daily_protein = ?, 
+           daily_carbs = ?, 
+           daily_fat = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [age, height, weight, gender, activity_level, goal, daily_calories, daily_protein, daily_carbs, daily_fat, userId]
+    );
+
+    return result.affectedRows > 0;
   }
 
   // Verificar contraseña

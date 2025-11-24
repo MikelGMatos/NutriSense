@@ -52,11 +52,6 @@ export const authService = {
     localStorage.removeItem('user');
   },
 
-  getProfile: async () => {
-    const response = await api.get('/api/auth/profile');
-    return response.data;
-  },
-
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
@@ -65,9 +60,31 @@ export const authService = {
   isAuthenticated: () => {
     return !!localStorage.getItem('token');
   },
+
+  // 🆕 NUEVO: Obtener perfil completo del usuario
+  getProfile: async () => {
+    try {
+      const response = await api.get('/api/auth/profile');
+      return response.data.user;
+    } catch (error) {
+      console.error('Error en getProfile:', error);
+      throw error;
+    }
+  },
+
+  // 🆕 NUEVO: Actualizar perfil del usuario (calculadora de calorías)
+  updateProfile: async (profileData) => {
+    try {
+      const response = await api.put('/api/auth/profile', profileData);
+      return response.data;
+    } catch (error) {
+      console.error('Error en updateProfile:', error);
+      throw error;
+    }
+  },
 };
 
-// Servicios de diarios (NUEVO)
+// Servicios de diarios
 export const diaryService = {
   getDiary: async (date) => {
     const response = await api.get(`/api/diaries/${date}`);

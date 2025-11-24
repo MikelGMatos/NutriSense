@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import FoodSearch from './FoodSearch';
+import CalorieCalculator from './CalorieCalculator';
+import Toast from './Toast';
+import { authService } from '../services/api';
 
-function Dashboard({ onLogout }) {
+function Dashboard({ user, onLogout }) {
   const [calorieLimit, setCalorieLimit] = useState(2000);
   const [showCalorieModal, setShowCalorieModal] = useState(false);
   const [newCalorieLimit, setNewCalorieLimit] = useState('');
@@ -32,6 +35,9 @@ function Dashboard({ onLogout }) {
   const [newAmount, setNewAmount] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [foodToDelete, setFoodToDelete] = useState(null);
+  const [showCalcModal, setShowCalcModal] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
 
   const mealInfo = {
@@ -44,6 +50,7 @@ function Dashboard({ onLogout }) {
 
   useEffect(() => {
     loadTodayMeals();
+    loadUserProfile();
   }, []);
 
   useEffect(() => {
@@ -80,6 +87,31 @@ function Dashboard({ onLogout }) {
       }
     } catch (error) {
       console.error('Error de conexión:', error);
+    }
+  };
+
+  const loadUserProfile = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch('http://localhost:3001/api/auth/profile', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      const profile = result.user;
+      setUserProfile(profile);
+      
+      // Si tiene calorías configuradas, actualizar el límite
+      if (profile.daily_calories) {
+        setCalorieLimit(profile.daily_calories);
+      }
+    }
+  } catch (error) {
+    console.error('Error loading profile:', error);
     }
   };
 
@@ -275,17 +307,77 @@ function Dashboard({ onLogout }) {
     setShowCalorieModal(true);
   };
 
-  const handleSaveCalorieLimit = () => {
+  const handleSaveCalorieLimit = async () => {
+    console.log('🚀 === INICIANDO handleSaveCalorieLimit ===');
+    
     const limit = parseInt(newCalorieLimit);
+    console.log('📝 Límite ingresado:', limit);
     
     if (!limit || limit < 500 || limit > 10000) {
+      console.log('❌ Validación fallida');
       alert('Introduce un límite entre 500 y 10,000 calorías');
       return;
     }
 
-    setCalorieLimit(limit);
-    setShowCalorieModal(false);
-    setNewCalorieLimit('');
+    const protein = Math.round((limit * 0.30) / 4);
+    const carbs = Math.round((limit * 0.45) / 4);
+    const fat = Math.round((limit * 0.25) / 9);
+    
+    console.log('📊 Macros calculados:', { protein, carbs, fat });
+
+    try {
+      console.log('1️⃣ Preparando datos...');
+      
+      const profileData = {
+        age: 25,
+        height: 170,
+        weight: 70,
+        gender: 'male',
+        activity_level: 'moderate',
+        goal: 'maintain',
+        daily_calories: limit,
+        daily_protein: protein,
+        daily_carbs: carbs,
+        daily_fat: fat
+      };
+
+      console.log('2️⃣ Datos preparados:', profileData);
+      console.log('3️⃣ Verificando authService:', authService);
+      console.log('4️⃣ Verificando updateProfile:', authService.updateProfile);
+      
+      console.log('5️⃣ Llamando a authService.updateProfile()...');
+      const result = await authService.updateProfile(profileData);
+      console.log('6️⃣ Resultado:', result);
+
+      console.log('7️⃣ Actualizando calorieLimit local...');
+      setCalorieLimit(limit);
+      
+      console.log('8️⃣ Recargando perfil...');
+      await loadUserProfile();
+      
+      console.log('9️⃣ Mostrando toast de éxito...');
+      setToast({ 
+        message: 'Calorías y macros actualizados correctamente', 
+        type: 'success' 
+      });
+      
+      console.log('🔟 Cerrando modal...');
+      setShowCalorieModal(false);
+      setNewCalorieLimit('');
+      
+      console.log('✅ === COMPLETADO EXITOSAMENTE ===');
+    } catch (error) {
+      console.error('❌ === ERROR EN handleSaveCalorieLimit ===');
+      console.error('Tipo de error:', error.constructor.name);
+      console.error('Mensaje:', error.message);
+      console.error('Stack:', error.stack);
+      console.error('Error completo:', error);
+      
+      setToast({ 
+        message: `${error.message || 'Error al guardar'}`, 
+        type: 'error' 
+      });
+    }
   };
 
   const openAddFoodModal = (mealType) => {
@@ -1025,9 +1117,28 @@ function Dashboard({ onLogout }) {
               <div className="calories-stats">
                 {stats.totalCalories} / {calorieLimit} kcal
               </div>
-              <button onClick={handleUpdateLimit} className="btn-edit-limit">
-                ✏️ Editar límite
-              </button>
+                <button 
+                  onClick={() => setShowCalcModal(true)} 
+                  className="btn-edit-limit"
+                  style={{
+                    background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8787 100%)',
+                    color: 'white',
+                    border: 'none'
+                  }}
+                >
+                  🔢 Calculadora
+                </button>
+                <button 
+                  onClick={handleUpdateLimit} 
+                  className="btn-edit-limit"
+                  style={{
+                    background: 'transparent',
+                    color: 'var(--color-primary)',
+                    border: '2px solid var(--color-primary)'
+                  }}
+                >
+                  ✏️ Editar manual
+                </button>
             </div>
           </div>
 
@@ -1076,6 +1187,101 @@ function Dashboard({ onLogout }) {
           </div>
         </div>
 
+        {userProfile && userProfile.daily_calories && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255, 107, 107, 0.05) 0%, rgba(255, 135, 135, 0.08) 100%)',
+            padding: '1.5rem',
+            borderRadius: '14px',
+            border: '2px solid rgba(255, 107, 107, 0.2)',
+            marginTop: '1.5rem',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+          }}>
+            <div style={{ 
+              fontSize: '0.9rem', 
+              fontWeight: '600', 
+              color: 'var(--color-gray-700)', 
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              🎯 Tus objetivos diarios
+              <span style={{
+                fontSize: '0.75rem',
+                background: 'rgba(255, 107, 107, 0.15)',
+                color: 'var(--color-primary)',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '12px',
+                fontWeight: '600'
+              }}>
+                {userProfile.goal === 'lose' ? 'Perder peso' : 
+                 userProfile.goal === 'gain' ? 'Ganar peso' : 
+                 'Mantener peso'}
+              </span>
+            </div>
+            
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
+              gap: '1rem' 
+            }}>
+              <div style={{ 
+                textAlign: 'center',
+                background: 'white',
+                padding: '1rem',
+                borderRadius: '10px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)', marginBottom: '0.5rem' }}>
+                  Proteínas
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#FF6B6B' }}>
+                  {userProfile.daily_protein}g
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-gray-400)', marginTop: '0.25rem' }}>
+                  30% calorías
+                </div>
+              </div>
+              
+              <div style={{ 
+                textAlign: 'center',
+                background: 'white',
+                padding: '1rem',
+                borderRadius: '10px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)', marginBottom: '0.5rem' }}>
+                  Carbohidratos
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#51CF66' }}>
+                  {userProfile.daily_carbs}g
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-gray-400)', marginTop: '0.25rem' }}>
+                  45% calorías
+                </div>
+              </div>
+              
+              <div style={{ 
+                textAlign: 'center',
+                background: 'white',
+                padding: '1rem',
+                borderRadius: '10px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)', marginBottom: '0.5rem' }}>
+                  Grasas
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#FCC419' }}>
+                  {userProfile.daily_fat}g
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-gray-400)', marginTop: '0.25rem' }}>
+                  25% calorías
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="meals-section">
           <div className="section-header">
             <h2 className="section-title">
@@ -1424,6 +1630,28 @@ function Dashboard({ onLogout }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 🆕 Modal de Calculadora de Calorías */}
+      {showCalcModal && (
+        <CalorieCalculator
+          user={user}
+          onClose={() => setShowCalcModal(false)}
+          onSuccess={(message) => {
+            setToast({ message, type: 'success' });
+            loadUserProfile();
+          }}
+        />
+      )}
+
+      {/* 🆕 Toast para notificaciones */}
+      {toast && (
+        <Toast 
+          message={toast.message}
+          type={toast.type}
+          duration={3000}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

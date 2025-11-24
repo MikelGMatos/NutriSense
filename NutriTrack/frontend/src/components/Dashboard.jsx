@@ -3,6 +3,9 @@ import FoodSearch from './FoodSearch';
 import CalorieCalculator from './CalorieCalculator';
 import Toast from './Toast';
 import { authService } from '../services/api';
+import MacrosChart from './MacrosChart';
+import MealBreakdownChart from './MealBreakdownChart';
+import WeeklyChart from './WeeklyChart';
 
 function Dashboard({ user, onLogout }) {
   const [calorieLimit, setCalorieLimit] = useState(2000);
@@ -1187,13 +1190,73 @@ function Dashboard({ user, onLogout }) {
           </div>
         </div>
 
+        {/* SECCIÓN DE GRÁFICOS */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+          gap: '1.5rem',
+          marginTop: '2rem',
+          marginBottom: '2rem'
+        }}>
+ 
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            border: '2px solid #E9ECEF'
+          }}>
+            <h3 style={{
+              fontSize: '1.1rem',
+              fontWeight: '700',
+              color: '#212529',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span>📊</span>
+              Distribución de Macronutrientes
+            </h3>
+            <MacrosChart 
+              protein={parseFloat(stats.totalProtein)}
+              carbs={parseFloat(stats.totalCarbs)}
+              fats={parseFloat(stats.totalFat)}
+            />
+          </div>
+
+        
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            border: '2px solid #E9ECEF'
+          }}>
+            <h3 style={{
+              fontSize: '1.1rem',
+              fontWeight: '700',
+              color: '#212529',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span>📈</span>
+              Desglose por Comida
+            </h3>
+            <MealBreakdownChart meals={meals} />
+          </div>
+        </div>
+
+        {/* Tus objetivos diarios */}
         {userProfile && userProfile.daily_calories && (
           <div style={{
             background: 'linear-gradient(135deg, rgba(255, 107, 107, 0.05) 0%, rgba(255, 135, 135, 0.08) 100%)',
             padding: '1.5rem',
             borderRadius: '14px',
             border: '2px solid rgba(255, 107, 107, 0.2)',
-            marginTop: '1.5rem',
+            marginBottom: '2rem',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
           }}>
             <div style={{ 
@@ -1281,7 +1344,31 @@ function Dashboard({ user, onLogout }) {
             </div>
           </div>
         )}
-        
+
+        {/* Evolución Semanal */}
+        <div style={{
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          marginBottom: '2rem',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          border: '2px solid #E9ECEF'
+        }}>
+          <h3 style={{
+            fontSize: '1.1rem',
+            fontWeight: '700',
+            color: '#212529',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <span>📅</span>
+            Evolución Semanal
+          </h3>
+          <WeeklyChart weeklyData={[]} />
+        </div>
+
         <div className="meals-section">
           <div className="section-header">
             <h2 className="section-title">

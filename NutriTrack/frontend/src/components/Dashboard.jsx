@@ -30,6 +30,8 @@ function Dashboard({ onLogout }) {
   const [editingFood, setEditingFood] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [newAmount, setNewAmount] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [foodToDelete, setFoodToDelete] = useState(null);
 
 
   const mealInfo = {
@@ -173,12 +175,18 @@ function Dashboard({ onLogout }) {
   };
 
   const handleDeleteFood = async (mealType, foodId) => {
-    if (!window.confirm('¿Eliminar esta comida?')) return;
+    const foodToRemove = meals[mealType].find(food => food.id === foodId);
+    setFoodToDelete({ mealType, foodId, foodName: foodToRemove?.name || foodToRemove?.food_name || 'este alimento' });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteFood = async () => {
+    if (!foodToDelete) return;
 
     try {
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:3001/api/diary/entries/${foodId}`, {
+      const response = await fetch(`http://localhost:3001/api/diary/entries/${foodToDelete.foodId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -189,8 +197,10 @@ function Dashboard({ onLogout }) {
       if (response.ok) {
         setMeals(prev => ({
           ...prev,
-          [mealType]: prev[mealType].filter(food => food.id !== foodId)
+          [foodToDelete.mealType]: prev[foodToDelete.mealType].filter(food => food.id !== foodToDelete.foodId)
         }));
+        setShowDeleteModal(false);
+        setFoodToDelete(null);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -1332,6 +1342,83 @@ function Dashboard({ onLogout }) {
                   onClick={handleSaveEdit}
                 >
                   💾 Guardar cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && foodToDelete && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="calorie-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="calorie-modal-header" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)' }}>
+              <div className="calorie-modal-icon" style={{ background: 'rgba(255,255,255,0.2)', fontSize: '2rem' }}>
+                🗑️
+              </div>
+              <h2 style={{ color: 'white' }}>¿Eliminar alimento?</h2>
+              <p style={{ color: 'rgba(255,255,255,0.95)' }}>
+                Esta acción no se puede deshacer
+              </p>
+            </div>
+            
+            <div className="calorie-modal-body">
+              <div className="calorie-info-box" style={{ 
+                background: 'linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%)',
+                borderLeft: '4px solid #ff6b6b',
+                padding: '1.25rem',
+                marginBottom: '1.5rem'
+              }}>
+                <p style={{ fontSize: '1rem', color: '#333', marginBottom: '0.75rem' }}>
+                  <strong>Estás a punto de eliminar:</strong>
+                </p>
+                <p style={{ 
+                  fontSize: '1.1rem', 
+                  color: '#ff6b6b', 
+                  fontWeight: '600',
+                  margin: '0'
+                }}>
+                  📦 {foodToDelete.foodName}
+                </p>
+              </div>
+
+              <div style={{ 
+                background: '#f8f9fa', 
+                padding: '1rem', 
+                borderRadius: '8px',
+                marginBottom: '1.5rem'
+              }}>
+                <p style={{ 
+                  fontSize: '0.9rem', 
+                  color: '#666',
+                  margin: 0,
+                  textAlign: 'center'
+                }}>
+                  💡 <strong>Consejo:</strong> Si quieres cambiar la cantidad, usa el botón de editar ✏️ en su lugar
+                </p>
+              </div>
+
+              <div className="calorie-modal-actions">
+                <button
+                  className="calorie-modal-btn calorie-modal-btn-cancel"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setFoodToDelete(null);
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  ✖️ Cancelar
+                </button>
+                <button
+                  className="calorie-modal-btn calorie-modal-btn-save"
+                  onClick={confirmDeleteFood}
+                  style={{ 
+                    flex: 1,
+                    background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
+                    boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)'
+                  }}
+                >
+                  🗑️ Sí, eliminar
                 </button>
               </div>
             </div>

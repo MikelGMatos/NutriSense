@@ -292,4 +292,85 @@ router.delete('/entries/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ============================================
+// PUT /api/diary/entries/:id
+// Actualizar cantidad y valores nutricionales de una entrada
+// ============================================
+router.put('/entries/:id', authMiddleware, async (req, res) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    const { amount, calories, protein, carbohydrates, fat } = req.body;
+
+    console.log('🔥 PUT /entries/:id - Usuario:', userId, 'Entry ID:', id);
+    console.log('📦 Nuevos valores:', { amount, calories, protein, carbohydrates, fat });
+
+    // Validaciones básicas
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ 
+        error: 'La cantidad debe ser mayor a 0' 
+      });
+    }
+
+    // Obtener conexión del pool
+    connection = await pool.getConnection();
+
+    // Verificar que la entrada existe y pertenece al usuario
+    const [entries] = await connection.execute(
+      `SELECT de.id 
+       FROM diary_entries de
+       JOIN diaries d ON de.diary_id = d.id
+       WHERE de.id = ? AND d.user_id = ?`,
+      [id, userId]
+    );
+
+    if (entries.length === 0) {
+      return res.status(404).json({ 
+        error: 'Entrada no encontrada o no tienes permisos' 
+      });
+    }
+
+    // Actualizar la entrada
+    // Nota: tu tabla usa 'quantity' y 'carbs'
+    await connection.execute(
+      `UPDATE diary_entries 
+       SET quantity = ?, calories = ?, protein = ?, carbs = ?, fat = ?
+       WHERE id = ?`,
+      [
+        amount,
+        calories || 0,
+        protein || 0,
+        carbohydrates || 0,  // carbohydrates del frontend -> carbs en la BD
+        fat || 0,
+        id
+      ]
+    );
+
+    console.log('✅ Entrada actualizada:', id);
+
+    res.json({
+      success: true,
+      message: 'Entrada actualizada correctamente',
+      data: {
+        id: parseInt(id),
+        amount,
+        calories,
+        protein,
+        carbohydrates,
+        fat
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error al actualizar entrada:', error);
+    res.status(500).json({ 
+      error: 'Error al actualizar la entrada',
+      details: error.message 
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 module.exports = router;

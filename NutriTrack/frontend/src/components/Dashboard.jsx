@@ -27,6 +27,10 @@ function Dashboard({ onLogout }) {
     totalCarbs: 0,
     totalFat: 0
   });
+  const [editingFood, setEditingFood] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [newAmount, setNewAmount] = useState("");
+
 
   const mealInfo = {
     desayuno: { icon: '🌅', name: 'Desayuno', time: '07:00 - 10:00' },
@@ -192,6 +196,69 @@ function Dashboard({ onLogout }) {
       console.error('Error:', error);
     }
   };
+
+  const handleEditFood = (mealType, food) => {
+    setEditingFood({ ...food, mealType });
+    setNewAmount(food.amount ? food.amount.toString() : '100');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingFood || !newAmount) return;
+
+    const amount = parseInt(newAmount);
+    if (!amount || amount <= 0) {
+      alert('Por favor, introduce una cantidad válida');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Calcular nuevos valores nutricionales basados en la nueva cantidad
+      const originalAmount = editingFood.amount || 100;
+      const multiplier = amount / originalAmount;
+      
+      const updatedFood = {
+        amount: amount,
+        calories: Math.round(editingFood.calories * multiplier),
+        protein: Math.round(editingFood.protein * multiplier * 10) / 10,
+        carbohydrates: Math.round(editingFood.carbohydrates * multiplier * 10) / 10,
+        fat: Math.round(editingFood.fat * multiplier * 10) / 10
+      };
+
+      const response = await fetch(`http://localhost:3001/api/diary/entries/${editingFood.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedFood)
+      });
+
+      if (response.ok) {
+        // Actualizar el estado local
+        setMeals(prev => ({
+          ...prev,
+          [editingFood.mealType]: prev[editingFood.mealType].map(food =>
+            food.id === editingFood.id
+              ? { ...food, ...updatedFood }
+              : food
+          )
+        }));
+
+        setShowEditModal(false);
+        setEditingFood(null);
+        setNewAmount('');
+      } else {
+        alert('Error al actualizar el alimento');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error de conexión');
+    }
+  };
+
 
   const handleUpdateLimit = () => {
     setNewCalorieLimit(calorieLimit.toString());
@@ -690,6 +757,24 @@ function Dashboard({ onLogout }) {
           color: #FFFFFF;
         }
 
+        .btn-edit-food {
+          padding: 0.625rem 0.875rem;
+          background: #F1F3F5;
+          color: #6C757D;
+          border: 2px solid #DEE2E6;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-size: 1.1rem;
+          margin-right: 0.5rem;
+        }
+
+        .btn-edit-food:hover {
+          background: #339AF0;
+          border-color: #339AF0;
+          color: #FFFFFF;
+        }
+
         .meal-totals {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -1059,6 +1144,12 @@ function Dashboard({ onLogout }) {
                               <span className="macro-value">{food.fat}g</span>
                             </div>
                             <button
+                              onClick={() => handleEditFood(mealType, food)}
+                              className="btn-edit-food"
+                            >
+                              ✏️
+                            </button>
+                            <button
                               onClick={() => handleDeleteFood(mealType, food.id)}
                               className="btn-delete-food"
                             >
@@ -1177,6 +1268,70 @@ function Dashboard({ onLogout }) {
                   onClick={handleSaveCalorieLimit}
                 >
                   💾 Guardar objetivo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editingFood && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="calorie-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="calorie-modal-header">
+              <div className="calorie-modal-icon">✏️</div>
+              <h2>Editar cantidad</h2>
+              <p>Modifica la cantidad de "{editingFood.name || editingFood.food_name}"</p>
+            </div>
+            
+            <div className="calorie-modal-body">
+              <div className="calorie-input-group">
+                <label className="calorie-input-label">
+                  Nueva cantidad (gramos)
+                </label>
+                <div className="calorie-input-wrapper">
+                  <input
+                    type="number"
+                    className="calorie-input"
+                    value={newAmount}
+                    onChange={(e) => setNewAmount(e.target.value)}
+                    placeholder="100"
+                    min="1"
+                    max="10000"
+                    autoFocus
+                  />
+                  <span className="calorie-input-unit">g</span>
+                </div>
+              </div>
+
+              <div className="calorie-info-box" style={{ marginTop: '1rem' }}>
+                <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                  <strong>Información nutricional estimada:</strong>
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.85rem' }}>
+                  <div>🔥 Calorías: <strong>{Math.round((editingFood.calories / (editingFood.amount || 100)) * parseInt(newAmount || 0))}</strong> kcal</div>
+                  <div>💪 Proteínas: <strong>{((editingFood.protein / (editingFood.amount || 100)) * parseInt(newAmount || 0)).toFixed(1)}</strong>g</div>
+                  <div>🍞 Carbos: <strong>{((editingFood.carbohydrates / (editingFood.amount || 100)) * parseInt(newAmount || 0)).toFixed(1)}</strong>g</div>
+                  <div>🥑 Grasas: <strong>{((editingFood.fat / (editingFood.amount || 100)) * parseInt(newAmount || 0)).toFixed(1)}</strong>g</div>
+                </div>
+              </div>
+
+              <div className="calorie-modal-actions">
+                <button
+                  className="calorie-modal-btn calorie-modal-btn-cancel"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingFood(null);
+                    setNewAmount('');
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="calorie-modal-btn calorie-modal-btn-save"
+                  onClick={handleSaveEdit}
+                >
+                  💾 Guardar cambios
                 </button>
               </div>
             </div>

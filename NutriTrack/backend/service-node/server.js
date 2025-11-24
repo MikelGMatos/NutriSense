@@ -1,4 +1,3 @@
-// ⭐ IMPORTANTE: dotenv DEBE ser lo primero, antes de cualquier otra cosa
 require('dotenv').config();
 
 const express = require('express');

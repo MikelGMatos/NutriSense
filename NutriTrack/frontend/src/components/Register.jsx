@@ -30,7 +30,6 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
   const [isVisible, setIsVisible] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Animación de entrada (Mejora #5)
   useEffect(() => {
     // Pequeño delay para que la animación se vea
     setTimeout(() => {
@@ -123,7 +122,6 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
       console.log('📥 Respuesta del servidor:', data);
 
       if (response.ok) {
-        // Registro exitoso (Mejora #6 - Toast de éxito)
         console.log('✅ Registro exitoso');
         
         setToast({
@@ -154,7 +152,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
         }, 1500);
         
       } else {
-        // Error del servidor (Mejora #6 - Toast de error)
+        // Error del servidor 
         console.error('❌ Error del servidor:', data.error);
         setError(data.error || 'Error al registrarse. Intenta nuevamente.');
         setToast({
@@ -177,7 +175,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
 
   return (
     <>
-      {/* Toast de notificaciones (Mejora #6) */}
+      {/* Toast de notificaciones */}
       {toast && (
         <Toast 
           message={toast.message}
@@ -187,7 +185,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
         />
       )}
 
-      {/* Contenedor con animación de entrada (Mejora #5) */}
+      {/* Contenedor con animación de entrada */}
       <div 
         className="login-container"
         style={{
@@ -252,7 +250,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
                 )}
               </div>
 
-              {/* Campo Contraseña con Toggle y Medidor (Mejoras #1 y #2) */}
+              {/* Campo Contraseña con Toggle y Medidor */}
               <div className="form-group">
                 <label className="form-label">
                   Contraseña
@@ -291,11 +289,11 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
                 {validationErrors.password && (
                   <span className="error-text">{validationErrors.password}</span>
                 )}
-                {/* Medidor de fuerza de contraseña (Mejora #1) */}
+                {/* Medidor de fuerza de contraseña */}
                 <PasswordStrength password={formData.password} />
               </div>
 
-              {/* Campo Confirmar Contraseña con Toggle (Mejora #2) */}
+              {/* Campo Confirmar Contraseña con Toggle */}
               <div className="form-group">
                 <label className="form-label">
                   Confirmar contraseña

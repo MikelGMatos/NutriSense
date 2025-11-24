@@ -4,7 +4,6 @@ import { sessionManager } from '../services/sessionManager';
 import Toast from './Toast';
 
 function Login({ onLoginSuccess, onSwitchToRegister }) {
-  // Solo usar navigate si está disponible (cuando usamos router)
   let navigate;
   try {
     navigate = useNavigate();

@@ -100,7 +100,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// 🆕 NUEVO: Actualizar perfil de usuario (calculadora de calorías)
+// Actualizar perfil de usuario (calculadora de calorías)
 exports.updateProfile = async (req, res) => {
   try {
     const {

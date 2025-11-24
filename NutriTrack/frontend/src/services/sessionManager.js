@@ -160,17 +160,3 @@ class SessionManager {
 
 // Exportar instancia única
 export const sessionManager = new SessionManager();
-
-// Uso en React:
-// import { sessionManager } from './services/sessionManager';
-// 
-// En Login después de login exitoso:
-// sessionManager.startSession(token);
-//
-// En App.jsx:
-// useEffect(() => {
-//   sessionManager.setWarningCallback((message, type) => {
-//     setToast({ message, type: type || 'warning' });
-//   });
-//   sessionManager.startPeriodicCheck();
-// }, []);

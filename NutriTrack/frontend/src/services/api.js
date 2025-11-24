@@ -61,7 +61,7 @@ export const authService = {
     return !!localStorage.getItem('token');
   },
 
-  // 🆕 NUEVO: Obtener perfil completo del usuario
+  // Obtener perfil completo del usuario
   getProfile: async () => {
     try {
       const response = await api.get('/api/auth/profile');
@@ -72,7 +72,7 @@ export const authService = {
     }
   },
 
-  // 🆕 NUEVO: Actualizar perfil del usuario (calculadora de calorías)
+  // Actualizar perfil del usuario (calculadora de calorías)
   updateProfile: async (profileData) => {
     try {
       const response = await api.put('/api/auth/profile', profileData);

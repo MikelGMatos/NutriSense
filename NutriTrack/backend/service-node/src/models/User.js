@@ -46,7 +46,7 @@ class User {
     return rows[0];
   }
 
-  // 🆕 NUEVO: Actualizar perfil de usuario (calculadora de calorías)
+  // Actualizar perfil de usuario (calculadora de calorías)
   static async updateProfile(userId, profileData) {
     const {
       age,

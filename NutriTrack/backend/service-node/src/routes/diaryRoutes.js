@@ -67,10 +67,10 @@ router.post('/entries', authMiddleware, async (req, res) => {
         diaryId,
         meal_type,
         food_name,
-        amount || 100,         // quantity (tu tabla usa 'quantity', no 'amount')
+        amount || 100,         
         calories || 0,
         protein || 0,
-        carbohydrates || 0,    // carbs (tu tabla usa 'carbs', no 'carbohydrates')
+        carbohydrates || 0,    
         fat || 0
       ]
     );
@@ -195,10 +195,10 @@ router.get('/entries/:date', authMiddleware, async (req, res) => {
         meal_type: entry.meal_type,
         food_name: entry.food_name,
         portion: `${entry.quantity}g`,
-        amount: entry.quantity,            // quantity -> amount para el frontend
+        amount: entry.quantity,            
         calories: parseFloat(entry.calories) || 0,
         protein: parseFloat(entry.protein) || 0,
-        carbohydrates: parseFloat(entry.carbs) || 0,  // carbs -> carbohydrates para el frontend
+        carbohydrates: parseFloat(entry.carbs) || 0,  
         fat: parseFloat(entry.fat) || 0,
         created_at: entry.created_at
       };
@@ -341,7 +341,7 @@ router.put('/entries/:id', authMiddleware, async (req, res) => {
         amount,
         calories || 0,
         protein || 0,
-        carbohydrates || 0,  // carbohydrates del frontend -> carbs en la BD
+        carbohydrates || 0,  
         fat || 0,
         id
       ]

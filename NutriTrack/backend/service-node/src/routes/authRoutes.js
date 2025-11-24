@@ -10,7 +10,7 @@ router.post('/login', authController.login);
 // Rutas protegidas (requieren autenticación)
 router.get('/profile', authMiddleware, authController.getProfile);
 
-// 🆕 NUEVA RUTA: Actualizar perfil de usuario (calculadora de calorías)
+// Actualizar perfil de usuario (calculadora de calorías)
 router.put('/profile', authMiddleware, authController.updateProfile);
 
 module.exports = router;

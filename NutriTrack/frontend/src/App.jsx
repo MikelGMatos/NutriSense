@@ -58,7 +58,6 @@ function App() {
   };
 
   const handleLogout = () => {
-    // MEJORA #3: Limpiar sesión con sessionManager
     sessionManager.clearSession();
     authService.logout();
     setUser(null);

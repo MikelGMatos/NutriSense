@@ -52,7 +52,7 @@ const FoodSearch = ({ mealType, mealName, onAddFood, onClose }) => {
     return {
       calories: Math.round(selectedFood.calories_per_100g * multiplier),
       protein: Math.round(selectedFood.protein_per_100g * multiplier * 10) / 10,
-      carbohydrates: Math.round(selectedFood.carbs_per_100g * multiplier * 10) / 10, // Nota: usa "carbohydrates" para tu Dashboard
+      carbohydrates: Math.round(selectedFood.carbs_per_100g * multiplier * 10) / 10, 
       fat: Math.round(selectedFood.fat_per_100g * multiplier * 10) / 10,
       portion: selectedPortion.name,
       amount: selectedPortion.weight_grams

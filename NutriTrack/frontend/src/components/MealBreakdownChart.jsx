@@ -6,7 +6,7 @@ const MealBreakdownChart = ({ meals }) => {
     desayuno: { name: 'Desayuno', icon: '🌅', color: '#3b82f6' },
     almuerzo: { name: 'Almuerzo', icon: '🥪', color: '#8b5cf6' },
     comida: { name: 'Comida', icon: '🍽️', color: '#f59e0b' },
-    merienda: { name: 'Merienda', icon: '🎃', color: '#ec4899' },
+    merienda: { name: 'Merienda', icon: '🥤', color: '#ec4899' },
     cena: { name: 'Cena', icon: '🌙', color: '#10b981' }
   };
 

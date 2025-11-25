@@ -50,7 +50,7 @@ function Dashboard({ user, onLogout }) {
     desayuno: { icon: '🌅', name: 'Desayuno', time: '07:00 - 10:00' },
     almuerzo: { icon: '🥪', name: 'Almuerzo', time: '10:00 - 12:00' },
     comida: { icon: '🍽️', name: 'Comida', time: '13:00 - 16:00' },
-    merienda: { icon: '🎃', name: 'Merienda', time: '17:00 - 19:00' },
+    merienda: { icon: '🥤', name: 'Merienda', time: '17:00 - 19:00' },
     cena: { icon: '🌙', name: 'Cena', time: '20:00 - 23:00' }
   };
 

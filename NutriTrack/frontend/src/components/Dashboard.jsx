@@ -6,8 +6,10 @@ import { authService } from '../services/api';
 import MacrosChart from './MacrosChart';
 import MealBreakdownChart from './MealBreakdownChart';
 import WeeklyChart from './WeeklyChart';
+import DateNavigator from './DateNavigator';
 
 function Dashboard({ user, onLogout }) {
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [calorieLimit, setCalorieLimit] = useState(2000);
   const [showCalorieModal, setShowCalorieModal] = useState(false);
   const [newCalorieLimit, setNewCalorieLimit] = useState('');
@@ -52,20 +54,20 @@ function Dashboard({ user, onLogout }) {
   };
 
   useEffect(() => {
-    loadTodayMeals();
+    loadMealsForDate(selectedDate);
     loadUserProfile();
-  }, []);
+  }, [selectedDate]);
 
   useEffect(() => {
     calculateStats();
   }, [meals]);
 
-  const loadTodayMeals = async () => {
+  const loadMealsForDate = async (date) => {
     try {
       const token = localStorage.getItem('token');
-      const today = new Date().toISOString().split('T')[0];
+      const dateStr = date.toISOString().split('T')[0];
 
-      const response = await fetch(`http://localhost:3001/api/diary/entries/${today}`, {
+      const response = await fetch(`http://localhost:3001/api/diary/entries/${dateStr}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -91,6 +93,10 @@ function Dashboard({ user, onLogout }) {
     } catch (error) {
       console.error('Error de conexión:', error);
     }
+  };
+
+  const loadTodayMeals = async () => {
+    await loadMealsForDate(new Date());
   };
 
   const loadUserProfile = async () => {
@@ -156,10 +162,10 @@ function Dashboard({ user, onLogout }) {
 
     try {
       const token = localStorage.getItem('token');
-      const today = new Date().toISOString().split('T')[0];
+      const dateStr = selectedDate.toISOString().split('T')[0];
 
       const dataToSend = {
-        date: today,
+        date: dateStr,
         meal_type: selectedMealType,
         food_name: foodData.name,
         portion: foodData.portion || `${foodData.amount}g`,
@@ -1110,6 +1116,12 @@ function Dashboard({ user, onLogout }) {
       </div>
 
       <div className="dashboard-container">
+        {/* 📅 Navegador de Fecha */}
+        <DateNavigator 
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+        />
+
         <div className="calories-section">
           <div className="calories-header">
             <h2 className="calories-title">
@@ -1344,30 +1356,6 @@ function Dashboard({ user, onLogout }) {
             </div>
           </div>
         )}
-
-        {/* Evolución Semanal */}
-        <div style={{
-          background: '#FFFFFF',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          marginBottom: '2rem',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          border: '2px solid #E9ECEF'
-        }}>
-          <h3 style={{
-            fontSize: '1.1rem',
-            fontWeight: '700',
-            color: '#212529',
-            marginBottom: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}>
-            <span>📅</span>
-            Evolución Semanal
-          </h3>
-          <WeeklyChart weeklyData={[]} />
-        </div>
 
         <div className="meals-section">
           <div className="section-header">

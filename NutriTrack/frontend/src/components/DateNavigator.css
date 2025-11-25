@@ -1,0 +1,358 @@
+.date-navigator {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.date-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nav-button:hover:not(:disabled) {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+}
+
+.nav-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.nav-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #e5e7eb;
+}
+
+.date-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  font-family: inherit;
+}
+
+.date-display:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.date-display:active {
+  transform: translateY(0);
+}
+
+.date-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.day-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.date-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.day-number {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.month-year {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.month-name {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.year-number {
+  font-size: 0.8rem;
+  opacity: 0.85;
+  line-height: 1;
+}
+
+.calendar-icon {
+  opacity: 0.9;
+}
+
+.today-button {
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  font-size: 0.95rem;
+}
+
+.today-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.today-button:active {
+  transform: translateY(0);
+}
+
+/* Calendar Popup */
+.calendar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+.calendar-popup {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 320px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.calendar-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.calendar-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calendar-nav-btn:hover {
+  background: #e5e7eb;
+  color: #3b82f6;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 0.5rem;
+  text-transform: uppercase;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.calendar-day:not(.empty):not(.future):hover {
+  background: #f3f4f6;
+  color: #3b82f6;
+  transform: scale(1.05);
+}
+
+.calendar-day.empty {
+  cursor: default;
+}
+
+.calendar-day.selected {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.calendar-day.selected:hover {
+  transform: scale(1.05);
+}
+
+.calendar-day.today:not(.selected) {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-weight: 600;
+}
+
+.calendar-day.today:not(.selected):hover {
+  transform: scale(1.05);
+}
+
+.calendar-day.future {
+  color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.calendar-day.future:hover {
+  background: transparent;
+  transform: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .date-controls {
+    gap: 0.5rem;
+  }
+
+  .nav-button {
+    width: 42px;
+    height: 42px;
+  }
+
+  .date-display {
+    padding: 0.6rem 1.25rem;
+  }
+
+  .day-number {
+    font-size: 1.75rem;
+  }
+
+  .month-name {
+    font-size: 0.9rem;
+  }
+
+  .calendar-popup {
+    min-width: 280px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    transform: none;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .date-display {
+    padding: 0.5rem 1rem;
+  }
+
+  .day-number {
+    font-size: 1.5rem;
+  }
+
+  .day-name {
+    font-size: 0.75rem;
+  }
+
+  .month-name {
+    font-size: 0.85rem;
+  }
+
+  .year-number {
+    font-size: 0.75rem;
+  }
+
+  .today-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}

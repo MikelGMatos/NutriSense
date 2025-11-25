@@ -104,6 +104,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const {
+      name,
       age,
       height,
       weight,
@@ -116,40 +117,34 @@ exports.updateProfile = async (req, res) => {
       daily_fat
     } = req.body;
 
-    // Validaciones básicas
-    if (!age || !height || !weight || !gender || !activity_level || !goal) {
-      return res.status(400).json({
-        error: 'Faltan datos requeridos para actualizar el perfil'
-      });
-    }
-
-    // Validar rangos
-    if (age < 15 || age > 100) {
+    // Validaciones básicas opcionales (permitir actualización parcial)
+    if (age && (age < 15 || age > 100)) {
       return res.status(400).json({ error: 'Edad debe estar entre 15 y 100 años' });
     }
 
-    if (height < 100 || height > 250) {
+    if (height && (height < 100 || height > 250)) {
       return res.status(400).json({ error: 'Altura debe estar entre 100 y 250 cm' });
     }
 
-    if (weight < 30 || weight > 300) {
+    if (weight && (weight < 30 || weight > 300)) {
       return res.status(400).json({ error: 'Peso debe estar entre 30 y 300 kg' });
     }
 
-    if (!['male', 'female'].includes(gender)) {
+    if (gender && !['male', 'female'].includes(gender)) {
       return res.status(400).json({ error: 'Género inválido' });
     }
 
-    if (!['sedentary', 'light', 'moderate', 'active', 'very_active'].includes(activity_level)) {
+    if (activity_level && !['sedentary', 'light', 'moderate', 'active', 'very_active'].includes(activity_level)) {
       return res.status(400).json({ error: 'Nivel de actividad inválido' });
     }
 
-    if (!['lose', 'maintain', 'gain'].includes(goal)) {
+    if (goal && !['lose', 'maintain', 'gain'].includes(goal)) {
       return res.status(400).json({ error: 'Objetivo inválido' });
     }
 
     // Actualizar perfil
     const updated = await User.updateProfile(req.userId, {
+      name,
       age,
       height,
       weight,
@@ -163,18 +158,25 @@ exports.updateProfile = async (req, res) => {
     });
 
     if (!updated) {
-      return res.status(500).json({ error: 'Error al actualizar el perfil' });
+      return res.status(500).json({ 
+        success: false,
+        message: 'Error al actualizar el perfil' 
+      });
     }
 
     // Obtener el perfil actualizado
     const user = await User.findById(req.userId);
 
     res.json({
+      success: true,
       message: 'Perfil actualizado exitosamente',
-      user
+      data: user
     });
   } catch (error) {
     console.error('Error en updateProfile:', error);
-    res.status(500).json({ error: 'Error al actualizar perfil' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error al actualizar perfil' 
+    });
   }
 };

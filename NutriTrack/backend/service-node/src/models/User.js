@@ -49,6 +49,7 @@ class User {
   // Actualizar perfil de usuario (calculadora de calorías)
   static async updateProfile(userId, profileData) {
     const {
+      name,
       age,
       height,
       weight,
@@ -63,7 +64,8 @@ class User {
 
     const [result] = await db.execute(
       `UPDATE users 
-       SET age = ?, 
+       SET name = ?,
+           age = ?, 
            height = ?, 
            weight = ?, 
            gender = ?, 
@@ -75,7 +77,7 @@ class User {
            daily_fat = ?,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [age, height, weight, gender, activity_level, goal, daily_calories, daily_protein, daily_carbs, daily_fat, userId]
+      [name, age, height, weight, gender, activity_level, goal, daily_calories, daily_protein, daily_carbs, daily_fat, userId]
     );
 
     return result.affectedRows > 0;

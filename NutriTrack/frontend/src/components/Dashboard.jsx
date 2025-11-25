@@ -5,8 +5,8 @@ import Toast from './Toast';
 import { authService } from '../services/api';
 import MacrosChart from './MacrosChart';
 import MealBreakdownChart from './MealBreakdownChart';
-import WeeklyChart from './WeeklyChart';
 import DateNavigator from './DateNavigator';
+import EditProfile from './EditProfile';
 
 function Dashboard({ user, onLogout }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -43,6 +43,7 @@ function Dashboard({ user, onLogout }) {
   const [showCalcModal, setShowCalcModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
 
   const mealInfo = {
@@ -492,6 +493,33 @@ function Dashboard({ user, onLogout }) {
         .header-subtitle {
           font-size: 0.85rem;
           color: #6C757D;
+        }
+
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .btn-edit-profile {
+          padding: 0.75rem 1.5rem;
+          background: linear-gradient(135deg, #FF6B6B 0%, #FF8787 100%);
+          color: white;
+          border: none;
+          border-radius: 10px;
+          font-size: 0.95rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          box-shadow: 0 2px 8px rgba(255, 107, 107, 0.2);
+        }
+
+        .btn-edit-profile:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(255, 107, 107, 0.35);
         }
 
         .btn-logout {
@@ -1096,6 +1124,23 @@ function Dashboard({ user, onLogout }) {
           .calorie-suggestions {
             grid-template-columns: repeat(2, 1fr);
           }
+
+          .header-actions {
+            flex-direction: column;
+            width: 100%;
+            gap: 0.5rem;
+          }
+
+          .btn-edit-profile,
+          .btn-logout {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .header-content {
+            flex-direction: column;
+            align-items: stretch;
+          }
         }
       `}</style>
 
@@ -1108,10 +1153,16 @@ function Dashboard({ user, onLogout }) {
               <p className="header-subtitle">Tu panel nutricional</p>
             </div>
           </div>
-          <button onClick={onLogout} className="btn-logout">
-            <span>🚪</span>
-            Cerrar Sesión
-          </button>
+          <div className="header-actions">
+            <button onClick={() => setShowEditProfile(true)} className="btn-edit-profile">
+              <span>👤</span>
+              Editar Perfil
+            </button>
+            <button onClick={onLogout} className="btn-logout">
+              <span>🚪</span>
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1718,6 +1769,20 @@ function Dashboard({ user, onLogout }) {
           }}
         />
       )}
+
+      {/* 🆕 Modal de Editar Perfil */}
+      <EditProfile 
+        isOpen={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        userProfile={userProfile}
+        onProfileUpdated={(updatedProfile) => {
+          setUserProfile(updatedProfile);
+          if (updatedProfile.daily_calories) {
+            setCalorieLimit(updatedProfile.daily_calories);
+          }
+          setToast({ message: 'Perfil actualizado correctamente', type: 'success' });
+        }}
+      />
 
       {/* 🆕 Toast para notificaciones */}
       {toast && (

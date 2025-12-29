@@ -3,10 +3,103 @@ const router = express.Router();
 const authMiddleware = require('../middleware/auth');
 const pool = require('../config/database');
 
-// ============================================
-// POST /api/diary/entries
-// Crear nueva entrada de alimento en el diario
-// ============================================
+/**
+ * @swagger
+ * /api/diary/entries:
+ *   post:
+ *     tags:
+ *       - Diary
+ *     summary: Crear nueva entrada de alimento
+ *     description: |
+ *       Añade un nuevo alimento al diario del usuario.
+ *       
+ *       ### Funcionamiento:
+ *       1. Busca o crea un diario para la fecha especificada
+ *       2. Crea una nueva entrada con el alimento y sus macros
+ *       3. Calcula automáticamente los valores nutricionales según la cantidad
+ *       
+ *       ### Tipos de comida disponibles:
+ *       - **desayuno**: Primera comida del día
+ *       - **almuerzo**: Media mañana
+ *       - **comida**: Comida principal del mediodía
+ *       - **merienda**: Media tarde
+ *       - **cena**: Última comida del día
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - date
+ *               - meal_type
+ *               - food_name
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 description: Fecha del diario (YYYY-MM-DD)
+ *                 example: "2025-12-29"
+ *               meal_type:
+ *                 type: string
+ *                 enum: [desayuno, almuerzo, comida, merienda, cena]
+ *                 description: Tipo de comida
+ *                 example: desayuno
+ *               food_name:
+ *                 type: string
+ *                 description: Nombre del alimento
+ *                 example: Pechuga de pollo
+ *               amount:
+ *                 type: number
+ *                 description: Cantidad en gramos (por defecto 100)
+ *                 example: 150
+ *               calories:
+ *                 type: number
+ *                 description: Calorías totales
+ *                 example: 247.5
+ *               protein:
+ *                 type: number
+ *                 description: Proteínas en gramos
+ *                 example: 46.5
+ *               carbohydrates:
+ *                 type: number
+ *                 description: Carbohidratos en gramos
+ *                 example: 0
+ *               fat:
+ *                 type: number
+ *                 description: Grasas en gramos
+ *                 example: 5.4
+ *     responses:
+ *       201:
+ *         description: Entrada creada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Alimento añadido al diario
+ *                 data:
+ *                   $ref: '#/components/schemas/DiaryEntry'
+ *       400:
+ *         description: Faltan campos requeridos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/entries', authMiddleware, async (req, res) => {
   let connection;
   try {
@@ -57,8 +150,7 @@ router.post('/entries', authMiddleware, async (req, res) => {
       diaryId = diaries[0].id;
     }
 
-    // Crear la entrada de alimento usando las columnas REALES de tu tabla
-    // Columnas reales: diary_id, food_name, calories, protein, carbs, fat, quantity, meal_type
+    // Crear la entrada de alimento
     const [result] = await connection.execute(
       `INSERT INTO diary_entries 
        (diary_id, meal_type, food_name, quantity, calories, protein, carbs, fat, created_at) 
@@ -106,10 +198,94 @@ router.post('/entries', authMiddleware, async (req, res) => {
   }
 });
 
-// ============================================
-// GET /api/diary/entries/:date
-// Obtener todas las entradas de alimentos de un día específico
-// ============================================
+/**
+ * @swagger
+ * /api/diary/entries/{date}:
+ *   get:
+ *     tags:
+ *       - Diary
+ *     summary: Obtener entradas del diario por fecha
+ *     description: |
+ *       Obtiene todas las entradas de alimentos de un día específico.
+ *       
+ *       ### Respuesta incluye:
+ *       - Entradas organizadas por tipo de comida (desayuno, almuerzo, comida, merienda, cena)
+ *       - Totales del día (calorías, proteínas, carbohidratos, grasas)
+ *       - Información detallada de cada alimento
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha del diario (YYYY-MM-DD)
+ *         example: "2025-12-29"
+ *     responses:
+ *       200:
+ *         description: Entradas del diario obtenidas exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2025-12-29"
+ *                     meals:
+ *                       type: object
+ *                       properties:
+ *                         desayuno:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/DiaryEntry'
+ *                         almuerzo:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/DiaryEntry'
+ *                         comida:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/DiaryEntry'
+ *                         merienda:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/DiaryEntry'
+ *                         cena:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/DiaryEntry'
+ *                     totals:
+ *                       type: object
+ *                       properties:
+ *                         calories:
+ *                           type: number
+ *                           example: 2200
+ *                         protein:
+ *                           type: number
+ *                           example: 150.5
+ *                         carbohydrates:
+ *                           type: number
+ *                           example: 220.3
+ *                         fat:
+ *                           type: number
+ *                           example: 65.2
+ *       401:
+ *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/entries/:date', authMiddleware, async (req, res) => {
   let connection;
   try {
@@ -118,10 +294,8 @@ router.get('/entries/:date', authMiddleware, async (req, res) => {
 
     console.log('📥 GET /entries/:date - Usuario:', userId, 'Fecha:', date);
 
-    // Obtener conexión del pool
     connection = await pool.getConnection();
 
-    // Buscar el diario de esta fecha
     const [diaries] = await connection.execute(
       'SELECT id FROM diaries WHERE user_id = ? AND date = ?',
       [userId, date]
@@ -152,8 +326,6 @@ router.get('/entries/:date', authMiddleware, async (req, res) => {
 
     const diaryId = diaries[0].id;
 
-    // Obtener todas las entradas usando las columnas REALES
-    // Columnas: id, meal_type, food_name, quantity, calories, protein, carbs, fat, created_at
     const [entries] = await connection.execute(
       `SELECT 
         id,
@@ -173,7 +345,6 @@ router.get('/entries/:date', authMiddleware, async (req, res) => {
 
     console.log(`📦 Encontradas ${entries.length} entradas`);
 
-    // Organizar por tipo de comida
     const meals = {
       desayuno: [],
       almuerzo: [],
@@ -238,10 +409,56 @@ router.get('/entries/:date', authMiddleware, async (req, res) => {
   }
 });
 
-// ============================================
-// DELETE /api/diary/entries/:id
-// Eliminar una entrada de alimento del diario
-// ============================================
+/**
+ * @swagger
+ * /api/diary/entries/{id}:
+ *   delete:
+ *     tags:
+ *       - Diary
+ *     summary: Eliminar entrada de alimento
+ *     description: |
+ *       Elimina una entrada específica del diario.
+ *       
+ *       ### Seguridad:
+ *       - Solo el propietario puede eliminar sus propias entradas
+ *       - Se verifica que la entrada pertenece al usuario autenticado
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la entrada a eliminar
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Entrada eliminada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Entrada eliminada correctamente
+ *       404:
+ *         description: Entrada no encontrada o sin permisos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.delete('/entries/:id', authMiddleware, async (req, res) => {
   let connection;
   try {
@@ -250,7 +467,6 @@ router.delete('/entries/:id', authMiddleware, async (req, res) => {
 
     console.log('📥 DELETE /entries/:id - Usuario:', userId, 'Entry ID:', id);
 
-    // Obtener conexión del pool
     connection = await pool.getConnection();
 
     // Verificar que la entrada existe y pertenece al usuario
@@ -292,10 +508,115 @@ router.delete('/entries/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// ============================================
-// PUT /api/diary/entries/:id
-// Actualizar cantidad y valores nutricionales de una entrada
-// ============================================
+/**
+ * @swagger
+ * /api/diary/entries/{id}:
+ *   put:
+ *     tags:
+ *       - Diary
+ *     summary: Actualizar entrada de alimento
+ *     description: |
+ *       Actualiza la cantidad y valores nutricionales de una entrada existente.
+ *       
+ *       ### Uso típico:
+ *       - Modificar la cantidad de un alimento ya registrado
+ *       - Los valores de macros se recalculan proporcionalmente
+ *       
+ *       ### Seguridad:
+ *       - Solo el propietario puede actualizar sus propias entradas
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la entrada a actualizar
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: Nueva cantidad en gramos (debe ser mayor a 0)
+ *                 example: 200
+ *               calories:
+ *                 type: number
+ *                 description: Calorías actualizadas
+ *                 example: 330
+ *               protein:
+ *                 type: number
+ *                 description: Proteínas actualizadas
+ *                 example: 62
+ *               carbohydrates:
+ *                 type: number
+ *                 description: Carbohidratos actualizados
+ *                 example: 0
+ *               fat:
+ *                 type: number
+ *                 description: Grasas actualizadas
+ *                 example: 7.2
+ *     responses:
+ *       200:
+ *         description: Entrada actualizada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Entrada actualizada correctamente
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     amount:
+ *                       type: number
+ *                       example: 200
+ *                     calories:
+ *                       type: number
+ *                       example: 330
+ *                     protein:
+ *                       type: number
+ *                       example: 62
+ *                     carbohydrates:
+ *                       type: number
+ *                       example: 0
+ *                     fat:
+ *                       type: number
+ *                       example: 7.2
+ *       400:
+ *         description: Datos inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Entrada no encontrada o sin permisos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.put('/entries/:id', authMiddleware, async (req, res) => {
   let connection;
   try {
@@ -313,7 +634,6 @@ router.put('/entries/:id', authMiddleware, async (req, res) => {
       });
     }
 
-    // Obtener conexión del pool
     connection = await pool.getConnection();
 
     // Verificar que la entrada existe y pertenece al usuario
@@ -332,7 +652,6 @@ router.put('/entries/:id', authMiddleware, async (req, res) => {
     }
 
     // Actualizar la entrada
-    // Nota: tu tabla usa 'quantity' y 'carbs'
     await connection.execute(
       `UPDATE diary_entries 
        SET quantity = ?, calories = ?, protein = ?, carbs = ?, fat = ?

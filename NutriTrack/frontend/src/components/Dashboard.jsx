@@ -101,27 +101,17 @@ function Dashboard({ user, onLogout }) {
   };
 
   const loadUserProfile = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:3001/api/auth/profile', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      const profile = result.user;
+    try {
+      // ✅ Usar authService que apunta al Gateway
+      const profile = await authService.getProfile();
       setUserProfile(profile);
       
       // Si tiene calorías configuradas, actualizar el límite
       if (profile.daily_calories) {
         setCalorieLimit(profile.daily_calories);
       }
-    }
-  } catch (error) {
-    console.error('Error loading profile:', error);
+    } catch (error) {
+      console.error('Error loading profile:', error);
     }
   };
 
@@ -325,10 +315,14 @@ function Dashboard({ user, onLogout }) {
     
     if (!limit || limit < 500 || limit > 10000) {
       console.log('❌ Validación fallida');
-      alert('Introduce un límite entre 500 y 10,000 calorías');
+      setToast({ 
+        message: 'Introduce un límite entre 500 y 10,000 calorías', 
+        type: 'error' 
+      });
       return;
     }
 
+    // Calcular macros basados en el nuevo límite de calorías
     const protein = Math.round((limit * 0.30) / 4);
     const carbs = Math.round((limit * 0.45) / 4);
     const fat = Math.round((limit * 0.25) / 9);
@@ -338,13 +332,16 @@ function Dashboard({ user, onLogout }) {
     try {
       console.log('1️⃣ Preparando datos...');
       
+      // ✅ Usar datos reales del perfil del usuario (no hardcodeados)
       const profileData = {
-        age: 25,
-        height: 170,
-        weight: 70,
-        gender: 'male',
-        activity_level: 'moderate',
-        goal: 'maintain',
+        // Mantener los datos existentes del perfil
+        age: userProfile?.age || 25,
+        height: userProfile?.height || 170,
+        weight: userProfile?.weight || 70,
+        gender: userProfile?.gender || 'male',
+        activity_level: userProfile?.activity_level || 'moderate',
+        goal: userProfile?.goal || 'maintain',
+        // Actualizar solo las calorías y macros
         daily_calories: limit,
         daily_protein: protein,
         daily_carbs: carbs,
@@ -352,26 +349,24 @@ function Dashboard({ user, onLogout }) {
       };
 
       console.log('2️⃣ Datos preparados:', profileData);
-      console.log('3️⃣ Verificando authService:', authService);
-      console.log('4️⃣ Verificando updateProfile:', authService.updateProfile);
       
-      console.log('5️⃣ Llamando a authService.updateProfile()...');
+      console.log('3️⃣ Llamando a authService.updateProfile()...');
       const result = await authService.updateProfile(profileData);
-      console.log('6️⃣ Resultado:', result);
+      console.log('4️⃣ Resultado:', result);
 
-      console.log('7️⃣ Actualizando calorieLimit local...');
+      console.log('5️⃣ Actualizando calorieLimit local...');
       setCalorieLimit(limit);
       
-      console.log('8️⃣ Recargando perfil...');
+      console.log('6️⃣ Recargando perfil...');
       await loadUserProfile();
       
-      console.log('9️⃣ Mostrando toast de éxito...');
+      console.log('7️⃣ Mostrando toast de éxito...');
       setToast({ 
-        message: 'Calorías y macros actualizados correctamente', 
+        message: '¡Objetivo guardado! Calorías y macros actualizados correctamente', 
         type: 'success' 
       });
       
-      console.log('🔟 Cerrando modal...');
+      console.log('8️⃣ Cerrando modal...');
       setShowCalorieModal(false);
       setNewCalorieLimit('');
       
@@ -382,9 +377,10 @@ function Dashboard({ user, onLogout }) {
       console.error('Mensaje:', error.message);
       console.error('Stack:', error.stack);
       console.error('Error completo:', error);
+      console.error('Response:', error.response?.data);
       
       setToast({ 
-        message: `${error.message || 'Error al guardar'}`, 
+        message: error.response?.data?.message || error.message || 'Error al guardar el objetivo', 
         type: 'error' 
       });
     }

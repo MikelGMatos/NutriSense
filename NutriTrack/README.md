@@ -2,7 +2,6 @@
 
 NutriTrack es una aplicación web completa de seguimiento nutricional que permite a los usuarios registrar sus comidas diarias, consultar información nutricional de alimentos y monitorear sus macronutrientes en tiempo real.
 
----
 
 ## 📋 Tabla de Contenidos
 
@@ -54,15 +53,34 @@ docker-compose up -d
 
 ### 3. Servicios que arranca Docker
 
-Docker arranca automáticamente estos 5 servicios:
+Docker arranca automáticamente estos 6 servicios:
 
 | Servicio | Puerto | Descripción |
 |----------|--------|-------------|
+| **api-gateway** | 4000 | Gateway unificado - Punto de entrada único para todas las APIs |
+| **backend-node** | 3001 | API REST de autenticación y gestión de diarios (interno) |
+| **backend-python** | 8000 | API REST del catálogo de alimentos (interno) |
 | **mysql** | 3306 | Base de datos relacional (usuarios y diarios) |
 | **mongodb** | 27017 | Base de datos de documentos (catálogo de alimentos) |
-| **backend-node** | 3001 | API REST de autenticación y gestión de diarios |
-| **backend-python** | 8000 | API REST del catálogo de alimentos |
 | **frontend** | 5173 | Aplicación web React |
+
+** Arquitectura con API Gateway:**
+
+```
+Frontend (puerto 5173)
+    ↓
+API Gateway (puerto 4000) ← Punto de entrada único
+    ├─→ /api/auth/*   → Backend Node.js (puerto 3001)
+    ├─→ /api/diary/*  → Backend Node.js (puerto 3001)
+    └─→ /api/foods/*  → Backend Python (puerto 8000)
+```
+
+**Ventajas del API Gateway:**
+- ✅ Punto de entrada único para el frontend
+- ✅ Enrutamiento centralizado
+- ✅ Rate limiting y seguridad
+- ✅ Documentación Swagger unificada
+- ✅ Logs centralizados
 
 ### 4. Mensajes esperados
 
@@ -71,10 +89,13 @@ Cuando todo esté listo verás:
 ```
 ✅ MySQL: ready for connections (puerto 3306)
 ✅ MongoDB: Waiting for connections (puerto 27017)
+✅ API Gateway: 🚀 NUTRITRACK API GATEWAY running on http://localhost:4000
 ✅ Backend Node.js: Servidor corriendo en http://localhost:3001
 ✅ Backend Python: Uvicorn running on http://0.0.0.0:8000
 ✅ Frontend: VITE ready - http://localhost:5173/
 ```
+
+**⏱️ Importante:** Espera 2-3 minutos para que todos los servicios inicien correctamente.
 
 ### 5. Comandos útiles de Docker
 
@@ -86,17 +107,20 @@ docker-compose up -d                # En segundo plano (detached mode)
 
 # Ver logs
 docker-compose logs -f              # Todos los servicios
-docker-compose logs -f backend-node # Un servicio específico
-docker-compose logs -f backend-python
-docker-compose logs -f frontend
+docker-compose logs -f api-gateway  # API Gateway
+docker-compose logs -f backend-node # Backend Node.js
+docker-compose logs -f backend-python # Backend Python
+docker-compose logs -f frontend     # Frontend React
 
 # Gestión de servicios
+docker-compose restart api-gateway   # Reiniciar API Gateway
 docker-compose restart backend-node  # Reiniciar un servicio
 docker-compose ps                    # Ver estado de servicios
 docker-compose down                  # Parar todos los servicios
 docker-compose down -v              # Parar y borrar bases de datos
 
 # Acceder a contenedores (avanzado)
+docker-compose exec api-gateway sh
 docker-compose exec backend-node sh
 docker-compose exec mysql mysql -u nutritrack -pnutritrack123 nutrition_db
 docker-compose exec mongodb mongosh
@@ -106,11 +130,22 @@ docker-compose exec mongodb mongosh
 
 Abre estas URLs en tu navegador:
 
+#### Frontend y Gateway:
 1. **Frontend**: http://localhost:5173 ✅ (Deberías ver la pantalla de login)
-2. **Backend Node.js**: http://localhost:3001/health ✅ (Respuesta: `{"status":"ok"}`)
-3. **Backend Python**: http://localhost:8000/health ✅ (Respuesta: `{"ok":true}`)
-4. **Alimentos**: http://localhost:8000/foods ✅ (Lista JSON con alimentos)
-5. **Documentación API**: http://localhost:8000/docs ✅ (Interfaz Swagger)
+2. **API Gateway**: http://localhost:4000 ✅ (Info del gateway y rutas disponibles)
+3. **Gateway Health**: http://localhost:4000/health ✅ (Respuesta: `{"status":"healthy"}`)
+4. **Documentación Swagger**: http://localhost:4000/api-docs ✅ (Interfaz interactiva completa)
+
+#### Endpoints a través del Gateway:
+5. **Auth Profile**: http://localhost:4000/api/auth/profile ✅ (Requiere autenticación)
+6. **Alimentos**: http://localhost:4000/api/foods ✅ (Lista JSON con alimentos)
+7. **Buscar alimentos**: http://localhost:4000/api/foods/search?q=pollo ✅
+
+#### Servicios internos (opcional, solo para debugging):
+8. **Backend Node.js**: http://localhost:3001/health ✅
+9. **Backend Python**: http://localhost:8000/health ✅
+
+**💡 Importante:** El frontend usa **SOLO el API Gateway** (puerto 4000). Los puertos 3001 y 8000 son internos.
 
 ### ✅ ¡Listo! Salta a la sección [Acceder a la Aplicación](#acceder-a-la-aplicación)
 
@@ -155,6 +190,25 @@ Necesitas instalar lo siguiente en tu sistema:
 - **Postman/Thunder Client** - Para probar APIs
 
 ### 2. Instalar dependencias
+
+#### API Gateway (Node.js)
+
+```bash
+cd backend/api-gateway
+npm install
+```
+
+**Dependencias instaladas:**
+- `express` - Framework web
+- `http-proxy-middleware` - Proxy para enrutar peticiones
+- `cors` - Control de acceso entre dominios
+- `helmet` - Headers de seguridad
+- `morgan` - Logger de peticiones HTTP
+- `express-rate-limit` - Limitación de peticiones
+- `swagger-ui-express` - Documentación interactiva
+- `swagger-jsdoc` - Generación de OpenAPI desde comentarios
+- `dotenv` - Gestión de variables de entorno
+- `nodemon` (dev) - Recarga automática del servidor
 
 #### Backend Node.js
 
@@ -246,7 +300,7 @@ Este script importa alimentos españoles organizados en 12 categorías.
 
 ### 4. Arrancar los servicios
 
-Necesitas **5 terminales** abiertas simultáneamente:
+Necesitas **6 terminales** abiertas simultáneamente:
 
 #### Terminal 1: MySQL
 
@@ -282,7 +336,24 @@ mongosh
 > show collections
 ```
 
-#### Terminal 3: Backend Node.js
+#### Terminal 3: API Gateway
+
+```bash
+cd backend/api-gateway
+
+# Instalar dependencias (primera vez)
+npm install
+
+# Arrancar gateway
+npm run dev
+
+# Salida esperada:
+# 🚀 NUTRITRACK API GATEWAY
+# 🌐 Gateway URL:       http://localhost:4000
+# 📚 Swagger Docs:      http://localhost:4000/api-docs
+```
+
+#### Terminal 4: Backend Node.js
 
 ```bash
 cd backend/service-node
@@ -305,7 +376,7 @@ npm run dev
 # ✅ Conexión exitosa a la base de datos MySQL
 ```
 
-#### Terminal 4: Backend Python
+#### Terminal 5: Backend Python
 
 ```bash
 cd backend/service-python
@@ -323,14 +394,13 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 # Conexión exitosa a MongoDB
 ```
 
-#### Terminal 5: Frontend React
+#### Terminal 6: Frontend React
 
 ```bash
 cd frontend
 
 # Crear archivo .env si no existe
-echo "VITE_API_NODE_URL=http://localhost:3001
-VITE_API_PYTHON_URL=http://localhost:8000" > .env
+echo "VITE_API_GATEWAY_URL=http://localhost:4000" > .env
 
 # Arrancar servidor de desarrollo
 npm run dev
@@ -341,15 +411,27 @@ npm run dev
 # ➜  Network: use --host to expose
 ```
 
+**⚠️ IMPORTANTE:** El frontend ahora usa SOLO la variable `VITE_API_GATEWAY_URL`. Todas las peticiones van al Gateway (puerto 4000), que las enruta a los microservicios correspondientes.
+
 ### 5. Verificar que todo funciona
 
 Abre estas URLs en tu navegador:
 
+#### Frontend y Gateway:
 1. **Frontend**: http://localhost:5173 ✅ (Deberías ver la pantalla de login)
-2. **Backend Node.js**: http://localhost:3001/health ✅ (Respuesta: `{"status":"ok"}`)
-3. **Backend Python**: http://localhost:8000/health ✅ (Respuesta: `{"ok":true}`)
-4. **Alimentos**: http://localhost:8000/foods ✅ (Lista JSON con alimentos)
-5. **Documentación API**: http://localhost:8000/docs ✅ (Interfaz Swagger)
+2. **API Gateway**: http://localhost:4000 ✅ (Info del gateway)
+3. **Gateway Health**: http://localhost:4000/health ✅ (Respuesta: `{"status":"healthy"}`)
+4. **Documentación Swagger**: http://localhost:4000/api-docs ✅ (Interfaz completa)
+
+#### Endpoints a través del Gateway:
+5. **Alimentos**: http://localhost:4000/api/foods ✅ (Lista JSON con alimentos)
+6. **Buscar alimentos**: http://localhost:4000/api/foods/search?q=pollo ✅
+
+#### Servicios internos (opcional):
+7. **Backend Node.js**: http://localhost:3001/health ✅ (Respuesta: `{"status":"ok"}`)
+8. **Backend Python**: http://localhost:8000/health ✅ (Respuesta: `{"ok":true}`)
+
+**💡 Nota:** El frontend se comunica SOLO con el API Gateway (puerto 4000).
 
 ---
 

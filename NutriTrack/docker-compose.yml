@@ -109,6 +109,39 @@ services:
     restart: unless-stopped
 
   # ============================================================
+  # API GATEWAY
+  # ============================================================
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: nutritrack-api-gateway
+    ports:
+      - "4000:4000"
+    environment:
+      # Gateway Configuration
+      GATEWAY_PORT: 4000
+      GATEWAY_HOST: 0.0.0.0
+      NODE_ENV: development
+      
+      # Microservices URLs
+      AUTH_SERVICE_URL: http://backend-node:3001
+      FOOD_SERVICE_URL: http://backend-python:8000
+      
+      # CORS Configuration
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:4000
+    depends_on:
+      - backend-node
+      - backend-python
+    volumes:
+      - ./backend/api-gateway:/app
+      - /app/node_modules
+    command: npm run dev
+    networks:
+      - nutritrack-network
+    restart: unless-stopped
+
+  # ============================================================
   # FRONTEND REACT
   # ============================================================
   frontend:
@@ -119,12 +152,10 @@ services:
     ports:
       - "5173:5173"
     environment:
-      # API URLs
-      VITE_API_NODE_URL: http://localhost:3001
-      VITE_API_PYTHON_URL: http://localhost:8000
+      # ⭐ API Gateway - Punto de entrada único
+      VITE_API_GATEWAY_URL: http://localhost:4000
     depends_on:
-      - backend-node
-      - backend-python
+      - api-gateway
     volumes:
       - ./frontend:/app
       - /app/node_modules

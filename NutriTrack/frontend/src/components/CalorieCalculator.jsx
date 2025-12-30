@@ -90,6 +90,8 @@ const CalorieCalculator = ({ user, onClose, onSuccess }) => {
     setError('');
 
     try {
+      console.log('📤 Enviando datos al servidor...');
+      
       // Guardar los datos en el backend
       const response = await authService.updateProfile({
         age: parseInt(formData.age),
@@ -104,10 +106,19 @@ const CalorieCalculator = ({ user, onClose, onSuccess }) => {
         daily_fat: results.fat
       });
 
+      console.log('✅ Respuesta del servidor:', response);
       onSuccess('¡Perfil actualizado! Tus objetivos nutricionales han sido guardados.');
       onClose();
     } catch (err) {
-      setError(err.message || 'Error al guardar el perfil');
+      console.error('❌ Error al guardar:', err);
+      console.error('Error response:', err.response?.data);
+      
+      const errorMessage = err.response?.data?.message 
+        || err.response?.data?.error 
+        || err.message 
+        || 'Error al guardar el perfil';
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

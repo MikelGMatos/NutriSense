@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(100),
     
-    -- Campos para calculadora de calorías (para futuras mejoras)
+    -- Campos para calculadora de calorías
     age INT DEFAULT NULL,
     height DECIMAL(5,2) DEFAULT NULL,
     weight DECIMAL(5,2) DEFAULT NULL,

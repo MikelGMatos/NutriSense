@@ -9,6 +9,9 @@ const FoodSearch = ({ mealType, mealName, onAddFood, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [customAmount, setCustomAmount] = useState(100);
 
+  // ⭐ API Gateway URL
+  const API_GATEWAY = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+
   // Buscar alimentos mientras el usuario escribe
   useEffect(() => {
     const searchFoods = async () => {
@@ -19,8 +22,9 @@ const FoodSearch = ({ mealType, mealName, onAddFood, onClose }) => {
 
       setIsLoading(true);
       try {
+        // ⭐ AHORA USA EL API GATEWAY
         const response = await fetch(
-          `http://localhost:8000/api/foods/search?q=${encodeURIComponent(searchQuery)}&limit=10`
+          `${API_GATEWAY}/api/foods/search?q=${encodeURIComponent(searchQuery)}&limit=10`
         );
         
         if (response.ok) {
@@ -41,7 +45,7 @@ const FoodSearch = ({ mealType, mealName, onAddFood, onClose }) => {
     // Debounce: esperar 300ms después de que el usuario deje de escribir
     const timeoutId = setTimeout(searchFoods, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, API_GATEWAY]);
 
   // Calcular macros según la porción seleccionada
   const calculateMacros = () => {
